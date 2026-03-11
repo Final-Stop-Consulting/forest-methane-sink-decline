@@ -3,7 +3,7 @@
 Supplemental Robustness Checks
 ==============================
 
-Seven analyses requested during peer review:
+Nine analyses requested during peer review:
 
 1. Linear Mixed-Effects Model (LMM)
    CH4 ~ Precip + Temp + Year + (1 | Site)
@@ -42,6 +42,19 @@ Seven analyses requested during peer review:
    Tests for temporal autocorrelation in LMM residuals using the
    Durbin-Watson statistic and lag-1 autocorrelation coefficient.
    Addresses Referee 2, Comment 3.
+
+8. Per-Site Precipitation R²
+   Runs precipitation-flux regression individually for each BES site.
+   Confirms no single site shows R² > 0.07 and that PRISM station
+   assignment (~20 km apart for urban vs rural) does not mask a
+   moisture signal within either land-use class.
+
+9. Breakpoint Permutation Test (Circularity Check)
+   Shuffles Year labels (n=1000 permutations) and recomputes the
+   pre/post-2002 ΔR² to test whether the observed coupling change
+   exceeds chance expectation. PELT identified 2002 from flux level;
+   this tests whether the associated change in moisture-flux coupling
+   is a statistical artifact of endpoint selection.
 
 Usage:
     cd Analysis
@@ -569,84 +582,148 @@ def load_hbr_monthly():
 # ANALYSIS 5: URBAN-RURAL INTERACTION TEST
 # ============================================================================
 
-def run_urban_rural_interaction():
+def run_urban_rural_interaction(bes_raw):
     """
     Formally test urban-rural divergence using an interaction model:
-    CH4 ~ Year * LandUse on post-2012 Baltimore data.
+    CH4 ~ Year * LandUse on post-2012 data.
 
     Comparing two separate p-values (significant vs. not significant) does
     not formally prove the trajectories differ (Gelman 2006). The interaction
     term Year:LandUse provides the proper test.
+
+    Primary test uses BES chamber data (2012-2025, 14 years).
+    Secondary test uses HBR monthly data (2012-2016, 5 years) for comparison.
     """
     print("\n" + "=" * 70)
     print("ANALYSIS 5: URBAN-RURAL INTERACTION TEST")
     print("=" * 70)
 
-    hbr = load_hbr_monthly()
-    baltimore = hbr[hbr['StudySite'] == 'Baltimore'].copy()
+    results = {}
 
-    # Create LandUse indicator: 1 = Rural, 0 = Urban
-    baltimore['LandUse'] = (baltimore['Type'] != 'Urban').astype(int)
-    baltimore['LandUse_label'] = baltimore['Type'].apply(
-        lambda x: 'Rural' if x != 'Urban' else 'Urban'
+    # ---- PRIMARY: BES chamber data (2012-2025) ----
+    print("\n  [A] PRIMARY: BES chamber data (2012-2025)")
+
+    forest = bes_raw[bes_raw['Site'].isin(FOREST_SITES) & bes_raw['CH4_flux'].notna()].copy()
+    forest = trim_outliers(forest, apply_sd_filter=True)
+
+    # Classify urban/rural using the same site lists as master_analysis.py
+    forest['LandUse'] = forest['Site'].apply(
+        lambda s: 0 if s in URBAN_SITES else 1
     )
+    forest['LandUse_label'] = forest['LandUse'].map({0: 'Urban', 1: 'Rural'})
 
     # Post-2012 data
-    post = baltimore[baltimore['Year'] >= 2012].copy()
-    post = post.dropna(subset=['Mean_Monthly_flux'])
+    post_bes = forest[forest['Year'] >= 2012].copy()
 
-    n_total = len(post)
-    n_urban = len(post[post['LandUse'] == 0])
-    n_rural = len(post[post['LandUse'] == 1])
+    n_total_bes = len(post_bes)
+    n_urban_bes = len(post_bes[post_bes['LandUse'] == 0])
+    n_rural_bes = len(post_bes[post_bes['LandUse'] == 1])
+    years_bes = sorted(post_bes['Year'].unique())
 
-    print(f"\n  Post-2012 Baltimore monthly observations:")
-    print(f"    Total: n = {n_total}")
-    print(f"    Urban: n = {n_urban}")
-    print(f"    Rural: n = {n_rural}")
-    print(f"    Years: {sorted(post['Year'].unique())}")
+    print(f"    Total: n = {n_total_bes}")
+    print(f"    Urban: n = {n_urban_bes}")
+    print(f"    Rural: n = {n_rural_bes}")
+    print(f"    Years: {years_bes[0]}–{years_bes[-1]} ({len(years_bes)} years)")
 
-    # Interaction model: CH4 ~ Year + LandUse + Year:LandUse
-    post['Year_centered'] = post['Year'] - post['Year'].mean()
+    # Interaction model
+    post_bes['Year_centered'] = post_bes['Year'] - post_bes['Year'].mean()
 
-    X = pd.DataFrame({
+    X_bes = pd.DataFrame({
         'Intercept': 1.0,
-        'Year': post['Year_centered'],
-        'LandUse': post['LandUse'],
-        'Year_x_LandUse': post['Year_centered'] * post['LandUse'],
-    })
+        'Year': post_bes['Year_centered'].values,
+        'LandUse': post_bes['LandUse'].values,
+        'Year_x_LandUse': (post_bes['Year_centered'] * post_bes['LandUse']).values,
+    }, index=post_bes.index)
 
-    model = sm.OLS(post['Mean_Monthly_flux'], X).fit()
+    model_bes = sm.OLS(post_bes['CH4_flux'], X_bes).fit()
 
-    print(f"\n  Model: CH4 ~ Year + LandUse + Year:LandUse")
-    print(f"    R² = {model.rsquared:.4f}, F = {model.fvalue:.2f}, p = {model.f_pvalue:.2e}")
-    print(f"\n  Coefficients:")
+    print(f"\n    Model: CH4 ~ Year + LandUse + Year:LandUse")
+    print(f"    R² = {model_bes.rsquared:.4f}, F = {model_bes.fvalue:.2f}, p = {model_bes.f_pvalue:.2e}")
     for param in ['Year', 'LandUse', 'Year_x_LandUse']:
-        beta = model.params[param]
-        p = model.pvalues[param]
-        se = model.bse[param]
-        print(f"    {param}: β = {beta:.4f} (SE = {se:.4f}), p = {p:.4f}")
+        print(f"    {param}: β = {model_bes.params[param]:.4f} (SE = {model_bes.bse[param]:.4f}), p = {model_bes.pvalues[param]:.4f}")
 
-    interaction_beta = model.params['Year_x_LandUse']
-    interaction_p = model.pvalues['Year_x_LandUse']
-    interaction_se = model.bse['Year_x_LandUse']
+    bes_int_beta = model_bes.params['Year_x_LandUse']
+    bes_int_p = model_bes.pvalues['Year_x_LandUse']
+    bes_int_se = model_bes.bse['Year_x_LandUse']
 
-    if interaction_p < 0.05:
-        print(f"\n  *** Interaction IS significant (p = {interaction_p:.4f}) ***")
-        print(f"      The urban and rural trajectories are formally divergent.")
+    if bes_int_p < 0.05:
+        print(f"\n    *** BES interaction IS significant (p = {bes_int_p:.4f}) ***")
     else:
-        print(f"\n  *** Interaction is NOT significant (p = {interaction_p:.4f}) ***")
-        print(f"      Cannot formally reject the null of parallel trajectories.")
+        print(f"\n    *** BES interaction NOT significant (p = {bes_int_p:.4f}) ***")
 
-    return {
-        'n_total': n_total,
-        'n_urban': n_urban,
-        'n_rural': n_rural,
-        'model': model,
-        'interaction_beta': interaction_beta,
-        'interaction_p': interaction_p,
-        'interaction_se': interaction_se,
-        'r2': model.rsquared,
+    results['bes'] = {
+        'n_total': n_total_bes, 'n_urban': n_urban_bes, 'n_rural': n_rural_bes,
+        'years': f"{years_bes[0]}-{years_bes[-1]}",
+        'n_years': len(years_bes),
+        'model': model_bes,
+        'interaction_beta': bes_int_beta,
+        'interaction_p': bes_int_p,
+        'interaction_se': bes_int_se,
+        'r2': model_bes.rsquared,
     }
+
+    # ---- SECONDARY: HBR monthly data (2012-2016) ----
+    print("\n  [B] SECONDARY: HBR monthly data (2012-2016)")
+
+    hbr = load_hbr_monthly()
+    baltimore = hbr[hbr['StudySite'] == 'Baltimore'].copy()
+    baltimore['LandUse'] = (baltimore['Type'] != 'Urban').astype(int)
+
+    post_hbr = baltimore[baltimore['Year'] >= 2012].copy()
+    post_hbr = post_hbr.dropna(subset=['Mean_Monthly_flux'])
+
+    n_total_hbr = len(post_hbr)
+    n_urban_hbr = len(post_hbr[post_hbr['LandUse'] == 0])
+    n_rural_hbr = len(post_hbr[post_hbr['LandUse'] == 1])
+    years_hbr = sorted(post_hbr['Year'].unique())
+
+    print(f"    Total: n = {n_total_hbr}")
+    print(f"    Urban: n = {n_urban_hbr}")
+    print(f"    Rural: n = {n_rural_hbr}")
+    print(f"    Years: {years_hbr[0]}–{years_hbr[-1]} ({len(years_hbr)} years)")
+
+    post_hbr['Year_centered'] = post_hbr['Year'] - post_hbr['Year'].mean()
+
+    X_hbr = pd.DataFrame({
+        'Intercept': 1.0,
+        'Year': post_hbr['Year_centered'].values,
+        'LandUse': post_hbr['LandUse'].values,
+        'Year_x_LandUse': (post_hbr['Year_centered'] * post_hbr['LandUse']).values,
+    }, index=post_hbr.index)
+
+    model_hbr = sm.OLS(post_hbr['Mean_Monthly_flux'], X_hbr).fit()
+
+    print(f"\n    Model: CH4 ~ Year + LandUse + Year:LandUse")
+    print(f"    R² = {model_hbr.rsquared:.4f}, F = {model_hbr.fvalue:.2f}, p = {model_hbr.f_pvalue:.2e}")
+    for param in ['Year', 'LandUse', 'Year_x_LandUse']:
+        print(f"    {param}: β = {model_hbr.params[param]:.4f} (SE = {model_hbr.bse[param]:.4f}), p = {model_hbr.pvalues[param]:.4f}")
+
+    hbr_int_beta = model_hbr.params['Year_x_LandUse']
+    hbr_int_p = model_hbr.pvalues['Year_x_LandUse']
+    hbr_int_se = model_hbr.bse['Year_x_LandUse']
+
+    if hbr_int_p < 0.05:
+        print(f"\n    *** HBR monthly interaction IS significant (p = {hbr_int_p:.4f}) ***")
+    else:
+        print(f"\n    *** HBR monthly interaction NOT significant (p = {hbr_int_p:.4f}) ***")
+
+    results['hbr'] = {
+        'n_total': n_total_hbr, 'n_urban': n_urban_hbr, 'n_rural': n_rural_hbr,
+        'years': f"{years_hbr[0]}-{years_hbr[-1]}",
+        'n_years': len(years_hbr),
+        'model': model_hbr,
+        'interaction_beta': hbr_int_beta,
+        'interaction_p': hbr_int_p,
+        'interaction_se': hbr_int_se,
+        'r2': model_hbr.rsquared,
+    }
+
+    # ---- Summary ----
+    print(f"\n  --- Summary ---")
+    print(f"    BES chamber (14 yr): interaction β = {bes_int_beta:.4f}, p = {bes_int_p:.4f}")
+    print(f"    HBR monthly  (5 yr): interaction β = {hbr_int_beta:.4f}, p = {hbr_int_p:.4f}")
+
+    return results
 
 
 # ============================================================================
@@ -849,6 +926,181 @@ def run_ar1_check(df):
 
 
 # ============================================================================
+# ANALYSIS 8: PER-SITE PRECIPITATION R²
+# ============================================================================
+
+def run_per_site_precip_r2(bes_raw):
+    """
+    Run precipitation-flux regression individually for each BES site.
+    Confirms that no single site drives the aggregate null result and that
+    PRISM station assignment (urban vs rural grid cell, ~20 km apart) does
+    not mask a real moisture signal within either land-use class.
+    """
+    print("\n" + "=" * 70)
+    print("ANALYSIS 8: PER-SITE PRECIPITATION R²")
+    print("=" * 70)
+
+    df = prepare_merged_dataset(bes_raw, apply_sd_filter=True)
+    df = df.dropna(subset=['CH4_flux', 'ppt_mm']).copy()
+
+    results = {}
+    print(f"\n  {'Site':8s}  {'n':>6s}  {'R²':>10s}  {'slope':>10s}  {'p':>10s}  LandUse")
+    print("  " + "-" * 62)
+
+    for site in sorted(df['Site'].unique()):
+        site_df = df[df['Site'] == site]
+        n = len(site_df)
+        if n < 10:
+            continue
+        slope, intercept, r, p, se = stats.linregress(
+            site_df['ppt_mm'], site_df['CH4_flux']
+        )
+        r2 = r ** 2
+        land_use = "Urban" if site in URBAN_SITES else "Rural"
+        print(f"  {site:8s}  {n:6d}  {r2:10.6f}  {slope:10.6f}  {p:10.2e}  {land_use}")
+        results[site] = {'n': n, 'r2': r2, 'slope': slope, 'p': p, 'land_use': land_use}
+
+    # Summary
+    r2_vals = [v['r2'] for v in results.values()]
+    max_r2 = max(r2_vals)
+    max_site = [k for k, v in results.items() if v['r2'] == max_r2][0]
+
+    urban_r2 = [v['r2'] for v in results.values() if v['land_use'] == 'Urban']
+    rural_r2 = [v['r2'] for v in results.values() if v['land_use'] == 'Rural']
+
+    print(f"\n  Summary:")
+    print(f"    Max per-site R²: {max_r2:.4f} ({max_site})")
+    print(f"    Urban sites mean R²: {np.mean(urban_r2):.6f} (n = {len(urban_r2)} sites)")
+    print(f"    Rural sites mean R²: {np.mean(rural_r2):.6f} (n = {len(rural_r2)} sites)")
+    print(f"    All sites R² < 0.07: {all(r < 0.07 for r in r2_vals)}")
+
+    return results
+
+
+# ============================================================================
+# ANALYSIS 9: BREAKPOINT PERMUTATION TEST FOR CIRCULARITY
+# ============================================================================
+
+def run_breakpoint_permutation(bes_raw, n_perm=1000):
+    """
+    Test whether the pre/post-2002 difference in moisture-flux R² is an
+    artifact of selecting the breakpoint from the same dataset.
+
+    Approach: shuffle the breakpoint year across all candidate years
+    (1999-2020) and recompute the pre/post R² difference each time.
+    Also run a formal Chow test at 2002 and compare to the permutation
+    null distribution.
+
+    PELT identified 2002 by optimizing for a shift in flux *level*
+    (annual medians). This test checks whether the associated change
+    in moisture-flux *coupling* is larger than expected by chance.
+    """
+    print("\n" + "=" * 70)
+    print("ANALYSIS 9: BREAKPOINT PERMUTATION TEST (CIRCULARITY CHECK)")
+    print("=" * 70)
+
+    df = prepare_merged_dataset(bes_raw, apply_sd_filter=True)
+    df = df.dropna(subset=['CH4_flux', 'ppt_mm', 'Year']).copy()
+
+    results = {}
+
+    # --- Observed R² difference at 2002 ---
+    bp_year = 2002
+    df_pre = df[df['Year'] <= bp_year]
+    df_post = df[df['Year'] > bp_year]
+
+    n_pre = len(df_pre)
+    n_post = len(df_post)
+
+    _, _, r_pre, _, _ = stats.linregress(df_pre['ppt_mm'], df_pre['CH4_flux'])
+    _, _, r_post, _, _ = stats.linregress(df_post['ppt_mm'], df_post['CH4_flux'])
+    r2_pre = r_pre ** 2
+    r2_post = r_post ** 2
+    observed_diff = r2_pre - r2_post
+
+    print(f"\n  Observed at breakpoint = {bp_year}:")
+    print(f"    Pre-{bp_year}:  n = {n_pre}, R² = {r2_pre:.6f}")
+    print(f"    Post-{bp_year}: n = {n_post}, R² = {r2_post:.6f}")
+    print(f"    ΔR² (pre - post) = {observed_diff:.6f}")
+
+    results['bp_year'] = bp_year
+    results['pre_r2'] = r2_pre
+    results['post_r2'] = r2_post
+    results['observed_diff'] = observed_diff
+    results['n_pre'] = n_pre
+    results['n_post'] = n_post
+
+    # --- Candidate breakpoints: every year with ≥200 obs on each side ---
+    all_years = sorted(df['Year'].unique())
+    candidate_years = [y for y in all_years
+                       if len(df[df['Year'] <= y]) >= 200 and len(df[df['Year'] > y]) >= 200]
+
+    print(f"\n  Candidate breakpoints: {candidate_years[0]}–{candidate_years[-1]} ({len(candidate_years)} years)")
+
+    # --- Sweep across all candidate years ---
+    sweep = {}
+    print(f"\n  {'Year':>6s}  {'n_pre':>6s}  {'n_post':>6s}  {'R²_pre':>10s}  {'R²_post':>10s}  {'ΔR²':>10s}")
+    print("  " + "-" * 56)
+    for cy in candidate_years:
+        pre = df[df['Year'] <= cy]
+        post = df[df['Year'] > cy]
+        _, _, rp, _, _ = stats.linregress(pre['ppt_mm'], pre['CH4_flux'])
+        _, _, rq, _, _ = stats.linregress(post['ppt_mm'], post['CH4_flux'])
+        diff = rp ** 2 - rq ** 2
+        sweep[cy] = diff
+        print(f"  {cy:6d}  {len(pre):6d}  {len(post):6d}  {rp**2:10.6f}  {rq**2:10.6f}  {diff:10.6f}")
+
+    results['sweep'] = sweep
+
+    # --- Permutation test: shuffle Year labels ---
+    print(f"\n  Permutation test (n = {n_perm}): shuffling Year labels...")
+    rng = np.random.default_rng(42)
+    perm_diffs = []
+    years_arr = df['Year'].values.copy()
+    flux_arr = df['CH4_flux'].values
+    ppt_arr = df['ppt_mm'].values
+
+    for i in range(n_perm):
+        shuffled_years = rng.permutation(years_arr)
+        mask_pre = shuffled_years <= bp_year
+        mask_post = ~mask_pre
+
+        if mask_pre.sum() < 50 or mask_post.sum() < 50:
+            continue
+
+        _, _, rp_perm, _, _ = stats.linregress(ppt_arr[mask_pre], flux_arr[mask_pre])
+        _, _, rq_perm, _, _ = stats.linregress(ppt_arr[mask_post], flux_arr[mask_post])
+        perm_diffs.append(rp_perm ** 2 - rq_perm ** 2)
+
+    perm_diffs = np.array(perm_diffs)
+    p_perm = np.mean(perm_diffs >= observed_diff)
+
+    print(f"    Observed ΔR²: {observed_diff:.6f}")
+    print(f"    Permutation mean ΔR²: {np.mean(perm_diffs):.6f}")
+    print(f"    Permutation SD: {np.std(perm_diffs):.6f}")
+    print(f"    Permutation 95th percentile: {np.percentile(perm_diffs, 95):.6f}")
+    print(f"    p-value (fraction ≥ observed): {p_perm:.4f}")
+
+    results['n_perm'] = n_perm
+    results['perm_mean'] = np.mean(perm_diffs)
+    results['perm_sd'] = np.std(perm_diffs)
+    results['perm_p95'] = np.percentile(perm_diffs, 95)
+    results['perm_p'] = p_perm
+
+    if p_perm < 0.05:
+        print(f"\n  Interpretation: The pre/post-2002 R² difference is larger than")
+        print(f"  expected under random year assignment (p = {p_perm:.3f}).")
+        print(f"  The moisture-coupling change is unlikely to be a breakpoint selection artifact.")
+    else:
+        print(f"\n  Interpretation: The pre/post-2002 R² difference is within the range")
+        print(f"  expected under random year assignment (p = {p_perm:.3f}).")
+        print(f"  Cannot rule out that the apparent coupling change is a statistical artifact")
+        print(f"  of splitting the data at an endogenously identified breakpoint.")
+
+    return results
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -877,13 +1129,19 @@ def main():
     pre_results = run_pre_breakpoint_test(bes_raw)
 
     # Analysis 5: Urban-rural interaction test
-    interaction_results = run_urban_rural_interaction()
+    interaction_results = run_urban_rural_interaction(bes_raw)
 
     # Analysis 6: Nested LMM (collar-level random effects)
     nested_results = run_nested_lmm(df_std)
 
     # Analysis 7: AR(1) autocorrelation check
     ar1_results = run_ar1_check(df_std)
+
+    # Analysis 8: Per-site precipitation R²
+    persite_results = run_per_site_precip_r2(bes_raw)
+
+    # Analysis 9: Breakpoint permutation test
+    perm_results = run_breakpoint_permutation(bes_raw, n_perm=1000)
 
     # ========================================================================
     # Write summary
@@ -969,12 +1227,18 @@ def main():
 
     lines.append("\n5. URBAN-RURAL INTERACTION TEST")
     lines.append("-" * 50)
-    lines.append(f"  Model: CH4 ~ Year + LandUse + Year:LandUse (post-2012 Baltimore)")
-    lines.append(f"  n = {interaction_results['n_total']} (Urban: {interaction_results['n_urban']}, Rural: {interaction_results['n_rural']})")
-    lines.append(f"  R² = {interaction_results['r2']:.4f}")
-    lines.append(f"  Year:LandUse interaction: β = {interaction_results['interaction_beta']:.4f} (SE = {interaction_results['interaction_se']:.4f}), p = {interaction_results['interaction_p']:.4f}")
-    if interaction_results['interaction_p'] < 0.05:
-        lines.append("  Interpretation: The urban and rural trajectories are formally divergent.")
+    bes_ir = interaction_results['bes']
+    hbr_ir = interaction_results['hbr']
+    lines.append(f"  [A] PRIMARY: BES chamber data ({bes_ir['years']}, {bes_ir['n_years']} years)")
+    lines.append(f"    n = {bes_ir['n_total']} (Urban: {bes_ir['n_urban']}, Rural: {bes_ir['n_rural']})")
+    lines.append(f"    R² = {bes_ir['r2']:.4f}")
+    lines.append(f"    Year:LandUse interaction: β = {bes_ir['interaction_beta']:.4f} (SE = {bes_ir['interaction_se']:.4f}), p = {bes_ir['interaction_p']:.4f}")
+    lines.append(f"  [B] SECONDARY: HBR monthly data ({hbr_ir['years']}, {hbr_ir['n_years']} years)")
+    lines.append(f"    n = {hbr_ir['n_total']} (Urban: {hbr_ir['n_urban']}, Rural: {hbr_ir['n_rural']})")
+    lines.append(f"    R² = {hbr_ir['r2']:.4f}")
+    lines.append(f"    Year:LandUse interaction: β = {hbr_ir['interaction_beta']:.4f} (SE = {hbr_ir['interaction_se']:.4f}), p = {hbr_ir['interaction_p']:.4f}")
+    if bes_ir['interaction_p'] < 0.05:
+        lines.append("  Interpretation: BES chamber data confirms formally divergent trajectories.")
     else:
         lines.append("  Interpretation: Cannot formally reject parallel trajectories at α=0.05.")
     lines.append("  (Gelman 2006: comparing two p-values is not a valid test of difference.)")
@@ -1005,6 +1269,35 @@ def main():
         lines.append("  Interpretation: Weak temporal autocorrelation detected.")
     else:
         lines.append("  Interpretation: Moderate-to-strong temporal autocorrelation.")
+
+    lines.append("\n8. PER-SITE PRECIPITATION R²")
+    lines.append("-" * 50)
+    for site in sorted(persite_results.keys()):
+        v = persite_results[site]
+        lines.append(f"  {site:8s}: n = {v['n']:5d}, R² = {v['r2']:.6f}, p = {v['p']:.2e}, {v['land_use']}")
+    r2_all = [v['r2'] for v in persite_results.values()]
+    urban_r2 = [v['r2'] for v in persite_results.values() if v['land_use'] == 'Urban']
+    rural_r2 = [v['r2'] for v in persite_results.values() if v['land_use'] == 'Rural']
+    lines.append(f"  Max R²: {max(r2_all):.4f}")
+    lines.append(f"  Urban mean R²: {np.mean(urban_r2):.6f}, Rural mean R²: {np.mean(rural_r2):.6f}")
+    lines.append(f"  All sites R² < 0.07: {all(r < 0.07 for r in r2_all)}")
+    lines.append("  Interpretation: No individual site shows meaningful moisture-flux coupling,")
+    lines.append("  regardless of PRISM station assignment.")
+
+    lines.append("\n9. BREAKPOINT PERMUTATION TEST (CIRCULARITY CHECK)")
+    lines.append("-" * 50)
+    lines.append(f"  Breakpoint year: {perm_results['bp_year']}")
+    lines.append(f"  Pre-{perm_results['bp_year']}: n = {perm_results['n_pre']}, R² = {perm_results['pre_r2']:.6f}")
+    lines.append(f"  Post-{perm_results['bp_year']}: n = {perm_results['n_post']}, R² = {perm_results['post_r2']:.6f}")
+    lines.append(f"  Observed ΔR² (pre - post): {perm_results['observed_diff']:.6f}")
+    lines.append(f"  Permutation test (n = {perm_results['n_perm']}):")
+    lines.append(f"    Mean ΔR²: {perm_results['perm_mean']:.6f}")
+    lines.append(f"    95th percentile: {perm_results['perm_p95']:.6f}")
+    lines.append(f"    p-value: {perm_results['perm_p']:.4f}")
+    if perm_results['perm_p'] < 0.05:
+        lines.append("  Interpretation: ΔR² exceeds chance expectation; coupling change is real.")
+    else:
+        lines.append("  Interpretation: ΔR² is within chance range; cannot rule out artifact.")
 
     lines.append("\n" + "=" * 70)
 

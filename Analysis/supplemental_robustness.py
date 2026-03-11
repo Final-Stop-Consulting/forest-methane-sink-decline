@@ -3,7 +3,7 @@
 Supplemental Robustness Checks
 ==============================
 
-Four analyses requested during peer review:
+Seven analyses requested during peer review:
 
 1. Linear Mixed-Effects Model (LMM)
    CH4 ~ Precip + Temp + Year + (1 | Site)
@@ -27,6 +27,22 @@ Four analyses requested during peer review:
    methanotrophic community was presumably intact.
    Addresses Referee 1, Comment 3.
 
+5. Urban-Rural Interaction Test
+   CH4 ~ Year * LandUse on post-2012 data to formally test
+   whether urban and rural trajectories are statistically divergent.
+   Addresses Referee 2, Comment 1.
+
+6. Nested LMM with Collar-Level Random Effects
+   CH4 ~ Precip + Temp + Year + (1 | Site/Collar) where Collar
+   is defined as Site_Plot_Chamber. Accounts for spatial
+   pseudoreplication at the collar level.
+   Addresses Referee 2, Comment 3.
+
+7. AR(1) Autocorrelation Check on LMM Residuals
+   Tests for temporal autocorrelation in LMM residuals using the
+   Durbin-Watson statistic and lag-1 autocorrelation coefficient.
+   Addresses Referee 2, Comment 3.
+
 Usage:
     cd Analysis
     python supplemental_robustness.py
@@ -46,6 +62,7 @@ import pandas as pd
 from scipy import stats
 import statsmodels.api as sm
 from statsmodels.regression.mixed_linear_model import MixedLM
+from statsmodels.stats.stattools import durbin_watson
 
 warnings.filterwarnings('ignore')
 
@@ -528,6 +545,310 @@ def run_pre_breakpoint_test(bes_raw):
 
 
 # ============================================================================
+# DATA LOADING: HBR MONTHLY (for urban-rural interaction test)
+# ============================================================================
+
+def load_hbr_monthly():
+    """Load HBR monthly CH4 flux data — mirrors master_analysis.py."""
+    fpath = os.path.join(DATA_DIR, "knb-lter-hbr.207/knb-lter-hbr.207-CH4_flux_monthly.csv")
+    df = pd.read_csv(fpath)
+
+    flux_cols = ['Monthly_flux_1', 'monthly_flux_2', 'Monthly_Flux_3', 'Monthly_Flux_4']
+    for col in flux_cols:
+        if col in df.columns:
+            df[col] = df[col].replace(MISSING_VALUES, np.nan)
+
+    df['Mean_Monthly_flux'] = df[flux_cols].mean(axis=1)
+    df['Year'] = df['Year'].astype(int)
+    df['Month'] = df['Month'].astype(int)
+
+    return df
+
+
+# ============================================================================
+# ANALYSIS 5: URBAN-RURAL INTERACTION TEST
+# ============================================================================
+
+def run_urban_rural_interaction():
+    """
+    Formally test urban-rural divergence using an interaction model:
+    CH4 ~ Year * LandUse on post-2012 Baltimore data.
+
+    Comparing two separate p-values (significant vs. not significant) does
+    not formally prove the trajectories differ (Gelman 2006). The interaction
+    term Year:LandUse provides the proper test.
+    """
+    print("\n" + "=" * 70)
+    print("ANALYSIS 5: URBAN-RURAL INTERACTION TEST")
+    print("=" * 70)
+
+    hbr = load_hbr_monthly()
+    baltimore = hbr[hbr['StudySite'] == 'Baltimore'].copy()
+
+    # Create LandUse indicator: 1 = Rural, 0 = Urban
+    baltimore['LandUse'] = (baltimore['Type'] != 'Urban').astype(int)
+    baltimore['LandUse_label'] = baltimore['Type'].apply(
+        lambda x: 'Rural' if x != 'Urban' else 'Urban'
+    )
+
+    # Post-2012 data
+    post = baltimore[baltimore['Year'] >= 2012].copy()
+    post = post.dropna(subset=['Mean_Monthly_flux'])
+
+    n_total = len(post)
+    n_urban = len(post[post['LandUse'] == 0])
+    n_rural = len(post[post['LandUse'] == 1])
+
+    print(f"\n  Post-2012 Baltimore monthly observations:")
+    print(f"    Total: n = {n_total}")
+    print(f"    Urban: n = {n_urban}")
+    print(f"    Rural: n = {n_rural}")
+    print(f"    Years: {sorted(post['Year'].unique())}")
+
+    # Interaction model: CH4 ~ Year + LandUse + Year:LandUse
+    post['Year_centered'] = post['Year'] - post['Year'].mean()
+
+    X = pd.DataFrame({
+        'Intercept': 1.0,
+        'Year': post['Year_centered'],
+        'LandUse': post['LandUse'],
+        'Year_x_LandUse': post['Year_centered'] * post['LandUse'],
+    })
+
+    model = sm.OLS(post['Mean_Monthly_flux'], X).fit()
+
+    print(f"\n  Model: CH4 ~ Year + LandUse + Year:LandUse")
+    print(f"    R² = {model.rsquared:.4f}, F = {model.fvalue:.2f}, p = {model.f_pvalue:.2e}")
+    print(f"\n  Coefficients:")
+    for param in ['Year', 'LandUse', 'Year_x_LandUse']:
+        beta = model.params[param]
+        p = model.pvalues[param]
+        se = model.bse[param]
+        print(f"    {param}: β = {beta:.4f} (SE = {se:.4f}), p = {p:.4f}")
+
+    interaction_beta = model.params['Year_x_LandUse']
+    interaction_p = model.pvalues['Year_x_LandUse']
+    interaction_se = model.bse['Year_x_LandUse']
+
+    if interaction_p < 0.05:
+        print(f"\n  *** Interaction IS significant (p = {interaction_p:.4f}) ***")
+        print(f"      The urban and rural trajectories are formally divergent.")
+    else:
+        print(f"\n  *** Interaction is NOT significant (p = {interaction_p:.4f}) ***")
+        print(f"      Cannot formally reject the null of parallel trajectories.")
+
+    return {
+        'n_total': n_total,
+        'n_urban': n_urban,
+        'n_rural': n_rural,
+        'model': model,
+        'interaction_beta': interaction_beta,
+        'interaction_p': interaction_p,
+        'interaction_se': interaction_se,
+        'r2': model.rsquared,
+    }
+
+
+# ============================================================================
+# ANALYSIS 6: NESTED LMM WITH COLLAR-LEVEL RANDOM EFFECTS
+# ============================================================================
+
+def run_nested_lmm(df):
+    """
+    Fit CH4 ~ Precip + Temp + Year + (1 | Collar)
+    where Collar = Site_Plot_Chamber, the individual static collar.
+
+    This accounts for spatial pseudoreplication at the collar level,
+    which is the true unit of repeated measurement.
+    """
+    print("\n" + "=" * 70)
+    print("ANALYSIS 6: NESTED LMM (COLLAR-LEVEL RANDOM EFFECTS)")
+    print("=" * 70)
+
+    df_model = df.dropna(subset=['CH4_flux', 'ppt_mm', 'tmean_c', 'Year', 'Site']).copy()
+
+    # Check for Plot and Chamber columns
+    has_plot = 'Plot' in df_model.columns
+    has_chamber = 'Chamber' in df_model.columns
+
+    if not (has_plot and has_chamber):
+        print("  WARNING: Plot/Chamber columns not found. Cannot fit nested model.")
+        print(f"  Available columns: {list(df_model.columns)}")
+        return None
+
+    # Create collar ID: Site_Plot_Chamber
+    df_model['Collar'] = (
+        df_model['Site'].astype(str) + '_' +
+        df_model['Plot'].astype(str) + '_' +
+        df_model['Chamber'].astype(str)
+    )
+
+    n_collars = df_model['Collar'].nunique()
+    n_sites = df_model['Site'].nunique()
+    print(f"\n  Dataset: n = {len(df_model)}")
+    print(f"  Sites: {n_sites}")
+    print(f"  Unique collars (Site_Plot_Chamber): {n_collars}")
+    print(f"  Avg observations per collar: {len(df_model) / n_collars:.1f}")
+
+    # Standardize predictors
+    df_model['ppt_std'] = (df_model['ppt_mm'] - df_model['ppt_mm'].mean()) / df_model['ppt_mm'].std()
+    df_model['tmean_std'] = (df_model['tmean_c'] - df_model['tmean_c'].mean()) / df_model['tmean_c'].std()
+    df_model['year_std'] = (df_model['Year'] - df_model['Year'].mean()) / df_model['Year'].std()
+
+    # --- Model A: (1 | Site) — original specification ---
+    exog_a = df_model[['ppt_std', 'tmean_std', 'year_std']].copy()
+    exog_a.insert(0, 'Intercept', 1.0)
+
+    lmm_site = MixedLM(
+        endog=df_model['CH4_flux'],
+        exog=exog_a,
+        groups=df_model['Site']
+    )
+    result_site = lmm_site.fit(reml=True)
+
+    print(f"\n  --- Model A: (1 | Site) ---")
+    print(f"    Log-likelihood: {result_site.llf:.2f}")
+    print(f"    AIC: {-2 * result_site.llf + 2 * (len(result_site.fe_params) + 1 + 1):.2f}")
+    print(f"    Site variance: {result_site.cov_re.iloc[0, 0]:.4f}")
+    print(f"    Residual variance: {result_site.scale:.4f}")
+    for param in ['ppt_std', 'tmean_std', 'year_std']:
+        print(f"    {param}: β = {result_site.fe_params[param]:.4f}, p = {result_site.pvalues[param]:.2e}")
+
+    # --- Model B: (1 | Collar) — nested specification ---
+    exog_b = df_model[['ppt_std', 'tmean_std', 'year_std']].copy()
+    exog_b.insert(0, 'Intercept', 1.0)
+
+    lmm_collar = MixedLM(
+        endog=df_model['CH4_flux'],
+        exog=exog_b,
+        groups=df_model['Collar']
+    )
+    result_collar = lmm_collar.fit(reml=True)
+
+    print(f"\n  --- Model B: (1 | Collar) ---")
+    print(f"    Log-likelihood: {result_collar.llf:.2f}")
+    print(f"    AIC: {-2 * result_collar.llf + 2 * (len(result_collar.fe_params) + 1 + 1):.2f}")
+    print(f"    Collar variance: {result_collar.cov_re.iloc[0, 0]:.4f}")
+    print(f"    Residual variance: {result_collar.scale:.4f}")
+    for param in ['ppt_std', 'tmean_std', 'year_std']:
+        print(f"    {param}: β = {result_collar.fe_params[param]:.4f}, p = {result_collar.pvalues[param]:.2e}")
+
+    # --- Comparison ---
+    print(f"\n  --- Comparison (Site → Collar) ---")
+    for param in ['ppt_std', 'tmean_std', 'year_std']:
+        site_b = result_site.fe_params[param]
+        site_p = result_site.pvalues[param]
+        collar_b = result_collar.fe_params[param]
+        collar_p = result_collar.pvalues[param]
+        print(f"    {param}: β {site_b:.4f} (p={site_p:.2e}) → {collar_b:.4f} (p={collar_p:.2e})")
+
+    aic_site = -2 * result_site.llf + 2 * (len(result_site.fe_params) + 2)
+    aic_collar = -2 * result_collar.llf + 2 * (len(result_collar.fe_params) + 2)
+    print(f"\n    AIC comparison: Site = {aic_site:.1f}, Collar = {aic_collar:.1f}")
+    print(f"    ΔAIC = {aic_collar - aic_site:.1f} (negative favors collar model)")
+
+    return {
+        'result_site': result_site,
+        'result_collar': result_collar,
+        'n_collars': n_collars,
+        'n_sites': n_sites,
+        'n': len(df_model),
+        'aic_site': aic_site,
+        'aic_collar': aic_collar,
+    }
+
+
+# ============================================================================
+# ANALYSIS 7: AR(1) AUTOCORRELATION CHECK ON LMM RESIDUALS
+# ============================================================================
+
+def run_ar1_check(df):
+    """
+    Check LMM residuals for temporal autocorrelation.
+    Uses Durbin-Watson statistic and lag-1 autocorrelation coefficient.
+    Ignoring AR(1) can artificially inflate significance of the Year term.
+    """
+    print("\n" + "=" * 70)
+    print("ANALYSIS 7: AR(1) AUTOCORRELATION CHECK")
+    print("=" * 70)
+
+    df_model = df.dropna(subset=['CH4_flux', 'ppt_mm', 'tmean_c', 'Year', 'Site']).copy()
+
+    # Standardize
+    df_model['ppt_std'] = (df_model['ppt_mm'] - df_model['ppt_mm'].mean()) / df_model['ppt_mm'].std()
+    df_model['tmean_std'] = (df_model['tmean_c'] - df_model['tmean_c'].mean()) / df_model['tmean_c'].std()
+    df_model['year_std'] = (df_model['Year'] - df_model['Year'].mean()) / df_model['Year'].std()
+
+    # Fit LMM
+    exog = df_model[['ppt_std', 'tmean_std', 'year_std']].copy()
+    exog.insert(0, 'Intercept', 1.0)
+
+    lmm = MixedLM(
+        endog=df_model['CH4_flux'],
+        exog=exog,
+        groups=df_model['Site']
+    )
+    result = lmm.fit(reml=True)
+
+    # Get residuals
+    # MixedLM residuals: observed - fitted
+    fitted = result.fittedvalues
+    residuals = df_model['CH4_flux'].values - fitted.values
+
+    # Sort by Site and Date for proper temporal ordering
+    df_model['resid'] = residuals
+    df_model_sorted = df_model.sort_values(['Site', 'Date']).copy()
+
+    # Global Durbin-Watson
+    dw_global = durbin_watson(df_model_sorted['resid'].values)
+    print(f"\n  Global Durbin-Watson: {dw_global:.4f}")
+    print(f"    (2.0 = no autocorrelation; <2 = positive; >2 = negative)")
+
+    # Per-site Durbin-Watson and lag-1 autocorrelation
+    print(f"\n  Per-site Durbin-Watson and lag-1 autocorrelation:")
+    site_results = {}
+    for site in sorted(df_model_sorted['Site'].unique()):
+        site_resid = df_model_sorted[df_model_sorted['Site'] == site]['resid'].values
+        if len(site_resid) > 10:
+            dw = durbin_watson(site_resid)
+            # Lag-1 autocorrelation
+            r1 = np.corrcoef(site_resid[:-1], site_resid[1:])[0, 1]
+            site_results[site] = {'dw': dw, 'lag1_r': r1, 'n': len(site_resid)}
+            print(f"    {site:6s}: DW = {dw:.3f}, lag-1 r = {r1:.3f} (n = {len(site_resid)})")
+
+    # Summary statistics
+    dw_values = [v['dw'] for v in site_results.values()]
+    r1_values = [v['lag1_r'] for v in site_results.values()]
+
+    mean_dw = np.mean(dw_values)
+    mean_r1 = np.mean(r1_values)
+
+    print(f"\n  Summary across sites:")
+    print(f"    Mean DW: {mean_dw:.3f}")
+    print(f"    Mean lag-1 r: {mean_r1:.3f}")
+    print(f"    DW range: {min(dw_values):.3f} – {max(dw_values):.3f}")
+    print(f"    Lag-1 r range: {min(r1_values):.3f} – {max(r1_values):.3f}")
+
+    # Interpretation
+    if abs(mean_r1) < 0.1:
+        print(f"\n  Interpretation: Lag-1 autocorrelation is negligible (mean |r| < 0.1).")
+        print(f"  Temporal autocorrelation does not meaningfully inflate Year significance.")
+    elif abs(mean_r1) < 0.3:
+        print(f"\n  Interpretation: Weak lag-1 autocorrelation detected (mean |r| = {abs(mean_r1):.2f}).")
+        print(f"  Year coefficient should be interpreted with mild caution.")
+    else:
+        print(f"\n  Interpretation: Moderate-to-strong lag-1 autocorrelation (mean |r| = {abs(mean_r1):.2f}).")
+        print(f"  Year significance may be inflated. Consider AR(1) covariance structure.")
+
+    return {
+        'dw_global': dw_global,
+        'mean_dw': mean_dw,
+        'mean_r1': mean_r1,
+        'site_results': site_results,
+    }
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -554,6 +875,15 @@ def main():
 
     # Analysis 4: Pre-breakpoint regression
     pre_results = run_pre_breakpoint_test(bes_raw)
+
+    # Analysis 5: Urban-rural interaction test
+    interaction_results = run_urban_rural_interaction()
+
+    # Analysis 6: Nested LMM (collar-level random effects)
+    nested_results = run_nested_lmm(df_std)
+
+    # Analysis 7: AR(1) autocorrelation check
+    ar1_results = run_ar1_check(df_std)
 
     # ========================================================================
     # Write summary
@@ -636,6 +966,45 @@ def main():
     lines.append("  collapse, pre-breakpoint R² should be substantially higher than the")
     lines.append("  full-record R². If it is also negligible, diffusion was never the")
     lines.append("  dominant control at these sites.")
+
+    lines.append("\n5. URBAN-RURAL INTERACTION TEST")
+    lines.append("-" * 50)
+    lines.append(f"  Model: CH4 ~ Year + LandUse + Year:LandUse (post-2012 Baltimore)")
+    lines.append(f"  n = {interaction_results['n_total']} (Urban: {interaction_results['n_urban']}, Rural: {interaction_results['n_rural']})")
+    lines.append(f"  R² = {interaction_results['r2']:.4f}")
+    lines.append(f"  Year:LandUse interaction: β = {interaction_results['interaction_beta']:.4f} (SE = {interaction_results['interaction_se']:.4f}), p = {interaction_results['interaction_p']:.4f}")
+    if interaction_results['interaction_p'] < 0.05:
+        lines.append("  Interpretation: The urban and rural trajectories are formally divergent.")
+    else:
+        lines.append("  Interpretation: Cannot formally reject parallel trajectories at α=0.05.")
+    lines.append("  (Gelman 2006: comparing two p-values is not a valid test of difference.)")
+
+    if nested_results is not None:
+        lines.append("\n6. NESTED LMM (COLLAR-LEVEL RANDOM EFFECTS)")
+        lines.append("-" * 50)
+        lines.append(f"  n = {nested_results['n']}, Sites = {nested_results['n_sites']}, Collars = {nested_results['n_collars']}")
+        lines.append(f"  AIC: Site model = {nested_results['aic_site']:.1f}, Collar model = {nested_results['aic_collar']:.1f}")
+        lines.append(f"  ΔAIC = {nested_results['aic_collar'] - nested_results['aic_site']:.1f}")
+        rs = nested_results['result_site']
+        rc = nested_results['result_collar']
+        lines.append(f"\n  Fixed effects (Site → Collar):")
+        for param in ['ppt_std', 'tmean_std', 'year_std']:
+            lines.append(f"    {param}: β = {rs.fe_params[param]:.4f} (p={rs.pvalues[param]:.2e}) → β = {rc.fe_params[param]:.4f} (p={rc.pvalues[param]:.2e})")
+        lines.append(f"\n  Variance components:")
+        lines.append(f"    Site model: group var = {rs.cov_re.iloc[0, 0]:.4f}, resid = {rs.scale:.4f}")
+        lines.append(f"    Collar model: group var = {rc.cov_re.iloc[0, 0]:.4f}, resid = {rc.scale:.4f}")
+
+    lines.append("\n7. AR(1) AUTOCORRELATION CHECK")
+    lines.append("-" * 50)
+    lines.append(f"  Global Durbin-Watson: {ar1_results['dw_global']:.4f}")
+    lines.append(f"  Mean per-site DW: {ar1_results['mean_dw']:.3f}")
+    lines.append(f"  Mean per-site lag-1 r: {ar1_results['mean_r1']:.3f}")
+    if abs(ar1_results['mean_r1']) < 0.1:
+        lines.append("  Interpretation: Negligible temporal autocorrelation.")
+    elif abs(ar1_results['mean_r1']) < 0.3:
+        lines.append("  Interpretation: Weak temporal autocorrelation detected.")
+    else:
+        lines.append("  Interpretation: Moderate-to-strong temporal autocorrelation.")
 
     lines.append("\n" + "=" * 70)
 

@@ -496,7 +496,7 @@ def block_1_precipitation_flux():
     # Figure 1: Scatterplot with regression
     fig, ax = plt.subplots(figsize=FIGSIZE_SINGLE)
 
-    ax.scatter(merged_all['ppt_mm'], merged_all['CH4_flux'], alpha=0.5, s=30)
+    ax.scatter(merged_all['ppt_mm'], merged_all['CH4_flux'], alpha=0.15, s=15)
 
     # Plot regression line
     x_range = np.linspace(merged_all['ppt_mm'].min(), merged_all['ppt_mm'].max(), 100)
@@ -595,7 +595,7 @@ def block_2_temperature_flux(merged_precip_data):
     # Figure 2: Scatterplot with regression
     fig, ax = plt.subplots(figsize=FIGSIZE_SINGLE)
 
-    ax.scatter(merged_temp['tmean_c'], merged_temp['CH4_flux'], alpha=0.5, s=30)
+    ax.scatter(merged_temp['tmean_c'], merged_temp['CH4_flux'], alpha=0.15, s=15)
 
     # Plot regression line
     x_range = np.linspace(merged_temp['tmean_c'].min(), merged_temp['tmean_c'].max(), 100)
@@ -1086,23 +1086,43 @@ def block_7_breakpoint_detection():
         for bp in breakpoints_bes[1:]:
             extra_yr = bes_annual.index[bp - 1]
             ax1.axvline(extra_yr, color='red', linestyle=':', linewidth=1.5, alpha=0.6)
+        # Pre/post-break median step lines
+        bes_pre_yrs = bes_annual.index[bes_annual.index < bp_year_bes]
+        bes_post_yrs = bes_annual.index[bes_annual.index >= bp_year_bes]
+        if len(bes_pre_yrs) > 0 and len(bes_post_yrs) > 0:
+            ax1.hlines(bes_pre_median, bes_pre_yrs.min(), bp_year_bes,
+                       colors='gray', linestyles='--', linewidth=1.5, alpha=0.7,
+                       label=f'Pre-break median: {bes_pre_median:.3f}')
+            ax1.hlines(bes_post_median, bp_year_bes, bes_post_yrs.max(),
+                       colors='gray', linestyles='--', linewidth=1.5, alpha=0.7,
+                       label=f'Post-break median: {bes_post_median:.3f}')
 
     ax1.axhline(0, color='black', linestyle=':', linewidth=0.5)
     ax1.set_ylabel('Annual Median CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11)
     ax1.set_title('A) BES Forest Sites (Annual Median)', fontsize=12, fontweight='bold')
-    ax1.legend()
+    ax1.legend(fontsize=8)
     ax1.grid(True, alpha=0.3)
 
     # HBR Reference
     ax2.plot(hbr_ref['Year'], hbr_ref['Annual_CH4_flux'], 'o-', linewidth=2, markersize=5, color='darkorange')
     if bp_year_hbr is not None:
         ax2.axvline(bp_year_hbr, color='red', linestyle='--', linewidth=2, label=f'Break: {bp_year_hbr}')
+        # Pre/post-break median step lines
+        hbr_pre_yrs = hbr_ref[hbr_ref['Year'] < bp_year_hbr]['Year']
+        hbr_post_yrs = hbr_ref[hbr_ref['Year'] >= bp_year_hbr]['Year']
+        if len(hbr_pre_yrs) > 0 and len(hbr_post_yrs) > 0:
+            ax2.hlines(hbr_pre_median, hbr_pre_yrs.min(), bp_year_hbr,
+                       colors='gray', linestyles='--', linewidth=1.5, alpha=0.7,
+                       label=f'Pre-break median: {hbr_pre_median:.3f}')
+            ax2.hlines(hbr_post_median, bp_year_hbr, hbr_post_yrs.max(),
+                       colors='gray', linestyles='--', linewidth=1.5, alpha=0.7,
+                       label=f'Post-break median: {hbr_post_median:.3f}')
 
     ax2.axhline(0, color='black', linestyle=':', linewidth=0.5)
     ax2.set_xlabel('Year', fontsize=11)
     ax2.set_ylabel('Annual CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11)
     ax2.set_title('B) HBR Reference Watershed (WS6-BB)', fontsize=12, fontweight='bold')
-    ax2.legend()
+    ax2.legend(fontsize=8)
     ax2.grid(True, alpha=0.3)
 
     fig.suptitle('Structural Breakpoint Detection\n(PELT Algorithm)', fontsize=13, fontweight='bold', y=0.995)
@@ -1489,7 +1509,7 @@ def block_11_soil_moisture_flux(precip_r2=None):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=FIGSIZE_DOUBLE)
 
     # Panel A: Scatterplot with regression
-    ax1.scatter(merged_all['Mean_VWC'], merged_all['CH4_flux'], alpha=0.5, s=30)
+    ax1.scatter(merged_all['Mean_VWC'], merged_all['CH4_flux'], alpha=0.15, s=15)
 
     # Plot regression line
     x_range = np.linspace(merged_all['Mean_VWC'].min(), merged_all['Mean_VWC'].max(), 100)

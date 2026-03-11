@@ -2028,7 +2028,7 @@ def print_summary(results_dict):
     summary_lines.append("-" * 50)
     if 'block7' in results_dict:
         bp = results_dict['block7']
-        summary_lines.append(f"  Detected breakpoints (PELT algorithm, pen=3):")
+        summary_lines.append(f"  Detected breakpoints (PELT algorithm, pen=0.1):")
         summary_lines.append(f"    BES: {bp['bp_year_bes'] if bp['bp_year_bes'] is not None else 'none detected'}")
         summary_lines.append(f"    HBR Reference: {bp['bp_year_hbr'] if bp['bp_year_hbr'] is not None else 'none detected'}")
         if bp.get('bes_pre_median') is not None:

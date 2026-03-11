@@ -3,7 +3,7 @@
 Supplemental Robustness Checks
 ==============================
 
-Nine analyses requested during peer review:
+Eleven analyses requested during peer review:
 
 1. Linear Mixed-Effects Model (LMM)
    CH4 ~ Precip + Temp + Year + (1 | Site)
@@ -55,6 +55,14 @@ Nine analyses requested during peer review:
    exceeds chance expectation. PELT identified 2002 from flux level;
    this tests whether the associated change in moisture-flux coupling
    is a statistical artifact of endpoint selection.
+
+10. Lysimeter NO3- Trends
+    OLS regression of lysimeter NO3- concentrations against time for
+    each forested BES site (1999-2025, n=10,481).
+
+11. HBR Changepoint Sensitivity
+    Tests stability of the HBR 2011 breakpoint by dropping the final
+    two years (2014-2015) and re-running PELT on the truncated record.
 
 Usage:
     cd Analysis
@@ -1101,6 +1109,108 @@ def run_breakpoint_permutation(bes_raw, n_perm=1000):
 
 
 # ============================================================================
+# ANALYSIS 10: LYSIMETER NO3- TRENDS
+# ============================================================================
+
+def run_lysimeter_trends():
+    """
+    OLS regression of lysimeter NO3- concentrations against time for each
+    forested BES site. Tests whether soil solution nitrogen shows monotonic
+    trends consistent with nitrogen saturation trajectories.
+    """
+    print("\n" + "=" * 70)
+    print("ANALYSIS 10: LYSIMETER NO3- TRENDS")
+    print("=" * 70)
+
+    fpath = os.path.join(DATA_DIR, "knb-lter-bes.428.292/BES_lysimeter_data_1999-2025_for_EDI.csv")
+    df = pd.read_csv(fpath)
+    df['Sampling_Date'] = pd.to_datetime(df['Sampling_Date'])
+    df['Year'] = df['Sampling_Date'].dt.year
+    df['NO3'] = df['NO3'].replace(MISSING_VALUES, np.nan)
+
+    df_forest = df[df['Vegetation'] == 'Forest'].copy()
+    df_clean = df_forest.dropna(subset=['NO3']).copy()
+    df_clean = df_clean[df_clean['Sample_Volume'] > 0]
+
+    print(f"\n  Total forest lysimeter records: {len(df_forest)}")
+    print(f"  Valid NO3 records: {len(df_clean)}")
+    print(f"  Sites: {sorted(df_clean['Site'].unique())}")
+    print(f"  Year range: {df_clean['Year'].min()}-{df_clean['Year'].max()}")
+
+    results = {}
+    for site in sorted(df_clean['Site'].unique()):
+        site_df = df_clean[df_clean['Site'] == site]
+        n = len(site_df)
+        if n < 20:
+            continue
+        slope, intercept, r, p, se = stats.linregress(site_df['Year'], site_df['NO3'])
+        land_use = "Urban" if site in URBAN_SITES else "Rural"
+        print(f"  {site:4s} ({land_use:5s}): n={n:5d}, slope={slope:.4f} mg/L/yr, "
+              f"R²={r**2:.4f}, p={p:.2e}, mean={site_df['NO3'].mean():.3f} mg/L")
+        results[site] = {
+            'n': n, 'slope': slope, 'r2': r ** 2, 'p': p,
+            'mean_no3': site_df['NO3'].mean(), 'land_use': land_use,
+        }
+
+    # Pooled
+    slope_p, _, r_p, p_p, _ = stats.linregress(df_clean['Year'], df_clean['NO3'])
+    print(f"\n  POOLED: n={len(df_clean)}, slope={slope_p:.4f}, R²={r_p**2:.4f}, p={p_p:.2e}")
+    results['_pooled'] = {'n': len(df_clean), 'slope': slope_p, 'r2': r_p ** 2, 'p': p_p}
+
+    return results
+
+
+# ============================================================================
+# ANALYSIS 11: HBR CHANGEPOINT SENSITIVITY TEST
+# ============================================================================
+
+def run_hbr_changepoint_sensitivity():
+    """
+    Test stability of the HBR 2011 breakpoint by dropping 2014-2015
+    and re-running PELT on the truncated 2002-2013 record.
+    """
+    import ruptures
+
+    print("\n" + "=" * 70)
+    print("ANALYSIS 11: HBR CHANGEPOINT SENSITIVITY")
+    print("=" * 70)
+
+    hbr = load_hbr_monthly()
+    ws6 = hbr[(hbr['StudySite'] == 'Hubbard Brook') & (hbr['SampleSite'] == 'WS6-BB')].copy()
+    ws6 = ws6.dropna(subset=['Mean_Monthly_flux'])
+
+    annual = ws6.groupby('Year')['Mean_Monthly_flux'].median().reset_index()
+    annual.columns = ['Year', 'Median_flux']
+    signal = annual['Median_flux'].values
+
+    results = {'full': {}, 'truncated': {}}
+
+    # Full data
+    print(f"\n  Full data: {annual['Year'].min()}-{annual['Year'].max()} ({len(annual)} years)")
+    for pen in [0.05, 0.1, 0.2, 0.5, 1.0]:
+        res = ruptures.Pelt(model="rbf", min_size=2).fit(signal).predict(pen=pen)
+        bps = [int(annual['Year'].iloc[i]) for i in res[:-1]]
+        print(f"    pen={pen}: breakpoints = {bps}")
+        results['full'][pen] = bps
+
+    # Truncated (drop 2014-2015)
+    annual_trunc = annual[annual['Year'] <= 2013].copy().reset_index(drop=True)
+    signal_trunc = annual_trunc['Median_flux'].values
+    print(f"\n  Truncated: {annual_trunc['Year'].min()}-{annual_trunc['Year'].max()} ({len(annual_trunc)} years)")
+    for pen in [0.05, 0.1, 0.2, 0.5, 1.0]:
+        res = ruptures.Pelt(model="rbf", min_size=2).fit(signal_trunc).predict(pen=pen)
+        bps = [int(annual_trunc['Year'].iloc[i]) for i in res[:-1]]
+        print(f"    pen={pen}: breakpoints = {bps}")
+        results['truncated'][pen] = bps
+
+    # Compare
+    stable = all(results['full'][p] == results['truncated'][p] for p in [0.05, 0.1, 0.2, 0.5, 1.0])
+    print(f"\n  Breakpoint identical across all penalties: {stable}")
+
+    return results
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -1142,6 +1252,12 @@ def main():
 
     # Analysis 9: Breakpoint permutation test
     perm_results = run_breakpoint_permutation(bes_raw, n_perm=1000)
+
+    # Analysis 10: Lysimeter NO3- trends
+    lysimeter_results = run_lysimeter_trends()
+
+    # Analysis 11: HBR changepoint sensitivity
+    hbr_sens_results = run_hbr_changepoint_sensitivity()
 
     # ========================================================================
     # Write summary
@@ -1298,6 +1414,24 @@ def main():
         lines.append("  Interpretation: ΔR² exceeds chance expectation; coupling change is real.")
     else:
         lines.append("  Interpretation: ΔR² is within chance range; cannot rule out artifact.")
+
+    lines.append("\n10. LYSIMETER NO3- TRENDS")
+    lines.append("-" * 50)
+    for site in sorted(k for k in lysimeter_results.keys() if not k.startswith('_')):
+        v = lysimeter_results[site]
+        lines.append(f"  {site:4s} ({v['land_use']:5s}): n={v['n']:5d}, slope={v['slope']:.4f} mg/L/yr, "
+                     f"R²={v['r2']:.4f}, p={v['p']:.2e}")
+    pv = lysimeter_results['_pooled']
+    lines.append(f"  Pooled: n={pv['n']}, slope={pv['slope']:.4f}, R²={pv['r2']:.4f}, p={pv['p']:.2e}")
+
+    lines.append("\n11. HBR CHANGEPOINT SENSITIVITY")
+    lines.append("-" * 50)
+    lines.append("  Full vs truncated (drop 2014-2015) PELT breakpoints:")
+    for pen in [0.05, 0.1, 0.2, 0.5, 1.0]:
+        f_bp = hbr_sens_results['full'].get(pen, [])
+        t_bp = hbr_sens_results['truncated'].get(pen, [])
+        match = "MATCH" if f_bp == t_bp else "DIFFER"
+        lines.append(f"    pen={pen}: full={f_bp}, trunc={t_bp} [{match}]")
 
     lines.append("\n" + "=" * 70)
 

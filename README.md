@@ -27,7 +27,7 @@ The convergence of these results suggests that diffusion limitation alone does n
 .
 ├── Analysis/
 │   ├── master_analysis.py          # Complete reproducible analysis (14 blocks)
-│   ├── supplemental_robustness.py  # 9 robustness checks: LMM, outlier, quadratic, pre-breakpoint, interaction, nested LMM, AR(1), per-site R², permutation
+│   ├── supplemental_robustness.py  # 11 robustness checks: LMM, outlier, quadratic, pre-breakpoint, interaction, nested LMM, AR(1), per-site R², permutation, lysimeter, HBR sensitivity
 │   ├── requirements.txt            # Python dependencies
 │   └── output/                     # Generated figures (PNG + SVG), SUMMARY.txt, SUPPLEMENTAL_RESULTS.txt
 ├── Data/

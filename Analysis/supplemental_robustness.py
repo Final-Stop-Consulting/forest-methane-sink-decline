@@ -3,45 +3,40 @@
 Supplemental Robustness Checks
 ==============================
 
-Eleven analyses requested during peer review:
+Twelve robustness analyses probing methodological concerns:
 
 1. Linear Mixed-Effects Model (LMM)
    CH4 ~ Precip + Temp + Year + (1 | Site)
    Addresses pseudoreplication from repeated chamber measurements
-   at fixed sites (Referee 1, Comment 2).
+   at fixed sites.
 
 2. Outlier Sensitivity Test
    Re-runs key regressions (Predictions 1, 5) WITHOUT the ±3 SD
    per-site-year filter, retaining only hotspot-site exclusion.
-   Addresses concern that trimming removes extreme events where
-   diffusion limitation physically manifests (Referee 1, Comment 4).
+   Tests whether trimming removes extreme events where diffusion
+   limitation physically manifests.
 
 3. Quadratic (Non-Linear) Moisture-Flux Test
    Fits Flux ~ Precip + Precip² and Flux ~ VWC + VWC² to test
    whether the unimodal moisture-flux relationship expected from
    diffusion theory is masked by the linear specification.
-   Addresses Referee 1, Comment 1.
 
 4. Pre-Breakpoint Precipitation Regression
    Runs precip-flux regression on pre-2002 BES data only, when the
    methanotrophic community was presumably intact.
-   Addresses Referee 1, Comment 3.
 
 5. Urban-Rural Interaction Test
    CH4 ~ Year * LandUse on post-2012 data to formally test
    whether urban and rural trajectories are statistically divergent.
-   Addresses Referee 2, Comment 1.
 
 6. Nested LMM with Collar-Level Random Effects
    CH4 ~ Precip + Temp + Year + (1 | Site/Collar) where Collar
    is defined as Site_Plot_Chamber. Accounts for spatial
    pseudoreplication at the collar level.
-   Addresses Referee 2, Comment 3.
 
 7. AR(1) Autocorrelation Check on LMM Residuals
    Tests for temporal autocorrelation in LMM residuals using the
    Durbin-Watson statistic and lag-1 autocorrelation coefficient.
-   Addresses Referee 2, Comment 3.
 
 8. Per-Site Precipitation R²
    Runs precipitation-flux regression individually for each BES site.
@@ -63,6 +58,12 @@ Eleven analyses requested during peer review:
 11. HBR Changepoint Sensitivity
     Tests stability of the HBR 2011 breakpoint by dropping the final
     two years (2014-2015) and re-running PELT on the truncated record.
+
+12. Precipitation × Post-2002 Interaction Model
+    Fits CH4 ~ Precip + Post2002 + Precip × Post2002 on the full
+    1998-2025 BES record. Tests whether the moisture-flux coupling
+    structurally changed at the 2002 breakpoint without subsetting
+    the data, bypassing the circularity of the pre/post split in S4.
 
 Usage:
     cd Analysis
@@ -1211,6 +1212,116 @@ def run_hbr_changepoint_sensitivity():
 
 
 # ============================================================================
+# ANALYSIS 12: PRECIPITATION × POST-2002 INTERACTION MODEL
+# ============================================================================
+
+def run_precip_post2002_interaction(bes_raw):
+    """
+    S12: Precipitation × Post-2002 Interaction Model
+    =================================================
+    Tests whether the moisture-flux coupling structurally changed at the
+    2002 PELT breakpoint, using an interaction model on the full record
+    rather than subsetting the data.
+
+    Model: CH4 ~ Precip + Post2002 + Precip × Post2002
+
+    If the interaction term is significant, the precipitation-flux
+    relationship differs between the pre- and post-breakpoint regimes,
+    providing evidence of a structural decoupling without the circularity
+    of the pre/post split in S4/S9.
+    """
+    print("\n" + "=" * 70)
+    print("S12: PRECIPITATION × POST-2002 INTERACTION MODEL")
+    print("=" * 70)
+
+    # Prepare merged dataset (standard filtering)
+    df = prepare_merged_dataset(bes_raw, apply_sd_filter=True)
+
+    if df.empty or 'ppt_mm' not in df.columns or 'CH4_flux' not in df.columns:
+        print("  ERROR: Could not prepare merged dataset.")
+        return None
+
+    # Create Post2002 dummy: 0 for 1998-2002, 1 for 2003-2025
+    df['Post2002'] = (df['Year'] > 2002).astype(int)
+
+    n_pre = (df['Post2002'] == 0).sum()
+    n_post = (df['Post2002'] == 1).sum()
+    print(f"\n  Pre-2002: n = {n_pre}")
+    print(f"  Post-2002: n = {n_post}")
+    print(f"  Total: n = {len(df)}")
+
+    # Standardize precipitation for interpretable coefficients
+    df['ppt_std'] = (df['ppt_mm'] - df['ppt_mm'].mean()) / df['ppt_mm'].std()
+
+    # Create interaction term
+    df['ppt_std_x_Post2002'] = df['ppt_std'] * df['Post2002']
+
+    # Fit OLS interaction model
+    X = df[['ppt_std', 'Post2002', 'ppt_std_x_Post2002']]
+    X = sm.add_constant(X)
+    y = df['CH4_flux']
+
+    model = sm.OLS(y, X).fit()
+
+    print(f"\n  OLS Results:")
+    print(f"    R² = {model.rsquared:.6f}")
+    print(f"    F = {model.fvalue:.4f}, p = {model.f_pvalue:.2e}")
+    print(f"\n  Coefficients:")
+    for param in ['const', 'ppt_std', 'Post2002', 'ppt_std_x_Post2002']:
+        coef = model.params[param]
+        pval = model.pvalues[param]
+        ci = model.conf_int().loc[param]
+        sig = "***" if pval < 0.001 else "**" if pval < 0.01 else "*" if pval < 0.05 else "ns"
+        print(f"    {param:30s}: β = {coef:+.6f}, p = {pval:.4e}, 95% CI [{ci[0]:+.6f}, {ci[1]:+.6f}] {sig}")
+
+    # Interpretation
+    interaction_p = model.pvalues['ppt_std_x_Post2002']
+    interaction_b = model.params['ppt_std_x_Post2002']
+
+    if interaction_p < 0.05:
+        print(f"\n  The interaction term is significant (p = {interaction_p:.4e}).")
+        print(f"  The precipitation-flux relationship structurally changed at 2002.")
+        if interaction_b < 0:
+            print(f"  Post-2002, precipitation has a MORE negative effect on flux")
+            print(f"  (stronger diffusion coupling after breakpoint).")
+        else:
+            print(f"  Post-2002, precipitation has a LESS negative (or more positive) effect on flux")
+            print(f"  (weaker diffusion coupling after breakpoint).")
+    else:
+        print(f"\n  The interaction term is not significant (p = {interaction_p:.4e}).")
+        print(f"  No statistically detectable change in moisture-flux coupling at 2002.")
+
+    # Also fit with Year as a covariate to check if the interaction
+    # persists after controlling for the secular trend
+    df['year_std'] = (df['Year'] - df['Year'].mean()) / df['Year'].std()
+    X2 = df[['ppt_std', 'Post2002', 'ppt_std_x_Post2002', 'year_std']]
+    X2 = sm.add_constant(X2)
+    model_with_year = sm.OLS(y, X2).fit()
+
+    print(f"\n  With Year covariate:")
+    print(f"    R² = {model_with_year.rsquared:.6f}")
+    for param in ['ppt_std', 'Post2002', 'ppt_std_x_Post2002', 'year_std']:
+        coef = model_with_year.params[param]
+        pval = model_with_year.pvalues[param]
+        sig = "***" if pval < 0.001 else "**" if pval < 0.01 else "*" if pval < 0.05 else "ns"
+        print(f"    {param:30s}: β = {coef:+.6f}, p = {pval:.4e} {sig}")
+
+    return {
+        'model': model,
+        'model_with_year': model_with_year,
+        'n_pre': n_pre,
+        'n_post': n_post,
+        'n_total': len(df),
+        'interaction_beta': interaction_b,
+        'interaction_p': interaction_p,
+        'interaction_beta_with_year': model_with_year.params['ppt_std_x_Post2002'],
+        'interaction_p_with_year': model_with_year.pvalues['ppt_std_x_Post2002'],
+        'r2': model.rsquared,
+        'r2_with_year': model_with_year.rsquared,
+    }
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -1258,6 +1369,9 @@ def main():
 
     # Analysis 11: HBR changepoint sensitivity
     hbr_sens_results = run_hbr_changepoint_sensitivity()
+
+    # Analysis 12: Precipitation × Post-2002 interaction
+    interaction_2002_results = run_precip_post2002_interaction(bes_raw)
 
     # ========================================================================
     # Write summary
@@ -1432,6 +1546,25 @@ def main():
         t_bp = hbr_sens_results['truncated'].get(pen, [])
         match = "MATCH" if f_bp == t_bp else "DIFFER"
         lines.append(f"    pen={pen}: full={f_bp}, trunc={t_bp} [{match}]")
+
+    lines.append("\n12. PRECIPITATION × POST-2002 INTERACTION MODEL")
+    lines.append("-" * 50)
+    if interaction_2002_results:
+        ir = interaction_2002_results
+        lines.append(f"  Model: CH4 ~ Precip + Post2002 + Precip × Post2002")
+        lines.append(f"  Pre-2002: n = {ir['n_pre']}, Post-2002: n = {ir['n_post']}, Total: n = {ir['n_total']}")
+        lines.append(f"  R² = {ir['r2']:.6f}")
+        lines.append(f"  Interaction (Precip × Post2002): β = {ir['interaction_beta']:+.6f}, p = {ir['interaction_p']:.4e}")
+        lines.append(f"  With Year covariate: R² = {ir['r2_with_year']:.6f}")
+        lines.append(f"    Interaction: β = {ir['interaction_beta_with_year']:+.6f}, p = {ir['interaction_p_with_year']:.4e}")
+        if ir['interaction_p'] < 0.05:
+            lines.append("  Interpretation: Moisture-flux coupling structurally changed at 2002.")
+            lines.append("  This confirms the pre/post split (S4) without data subsetting.")
+        else:
+            lines.append("  Interpretation: No statistically detectable change in coupling at 2002.")
+            lines.append("  The pre/post difference in S4 may reflect a selection artifact.")
+    else:
+        lines.append("  ERROR: Could not run interaction model.")
 
     lines.append("\n" + "=" * 70)
 

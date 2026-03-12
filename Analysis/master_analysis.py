@@ -9,7 +9,7 @@ a 77% decline in forest CH₄ uptake at two Long-Term Ecological
 Research (LTER) sites: Baltimore Ecosystem Study (BES, 1998–2025)
 and Hubbard Brook Experimental Forest (HBR, 2002–2015).
 
-Thirteen analytical blocks systematically evaluate five predictions
+Fourteen analytical blocks systematically evaluate five predictions
 of the hypothesis using >10,000 chamber measurements, in-situ soil
 moisture, PRISM climate data, NADP deposition records, lysimeter
 chemistry, and vegetation surveys.
@@ -19,7 +19,7 @@ Usage:
     python master_analysis.py
 
 Output:
-    13 publication-quality figures (PNG + SVG) and SUMMARY.txt
+    14 publication-quality figures (PNG + SVG) and SUMMARY.txt
     are written to the output/ subdirectory.
 
 Data:

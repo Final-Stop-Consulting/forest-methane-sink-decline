@@ -504,7 +504,7 @@ def block_1_precipitation_flux():
     ax.plot(x_range, y_pred, 'r-', linewidth=2, label='Linear regression')
 
     p_str = f"p = {stats_pooled['p_value']:.3e}" if stats_pooled['p_value'] >= 0.001 else "p < 0.001"
-    ax.text(0.05, 0.95, f"r² = {stats_pooled['r2']:.3f}\n{p_str}\nn = {stats_pooled['n']}",
+    ax.text(0.05, 0.95, f"r² = {stats_pooled['r2']:.4f}\n{p_str}\nn = {stats_pooled['n']}",
             transform=ax.transAxes, fontsize=11, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
@@ -688,7 +688,7 @@ def block_3_multi_predictor(merged_temp_data):
     ax.set_yticklabels(['Precipitation (std)', 'Temperature (std)', 'Year (std)'])
     ax.axvline(0, color='black', linestyle='-', linewidth=0.5)
     ax.set_xlabel('Standardized Coefficient', fontsize=12)
-    ax.set_title('Prediction 5: Multi-Predictor Model\n(R² = 1.2% — Year Dominates)', fontsize=13, fontweight='bold')
+    ax.set_title('Prediction 5: Multi-Predictor OLS Model\n(R² = 1.2% — Year Dominates)', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='x')
 
     plt.tight_layout()
@@ -766,7 +766,7 @@ def block_4_seasonal_stratification(merged_temp_data):
 
     ax.set_xlabel('Season', fontsize=12)
     ax.set_ylabel('R² (explained variance)', fontsize=12)
-    ax.set_title('Prediction 2: Seasonal Stratification\n(Summer Should Be Strongest If Diffusion-Limited)',
+    ax.set_title('Prediction 2: Seasonal Stratification\n(Spring/Fall Should Be Strongest If Diffusion-Limited)',
                  fontsize=13, fontweight='bold')
     ax.set_xticks(x)
     ax.set_xticklabels(seasons_order)
@@ -974,7 +974,7 @@ def block_6_urban_rural_divergence():
     ax.axhline(0, color='black', linestyle=':', linewidth=0.5)
     ax.set_xlabel('Year', fontsize=12)
     ax.set_ylabel('Annual Mean CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=12)
-    ax.set_title('Prediction 4: Urban-Rural Divergence\n(Recovery Should Be Similar)', fontsize=13, fontweight='bold')
+    ax.set_title('Prediction 4: Urban-Rural Divergence\n(Recovery Should Be Similar; Year×LandUse p = 0.007)', fontsize=13, fontweight='bold')
     ax.legend()
     ax.grid(True, alpha=0.3)
 

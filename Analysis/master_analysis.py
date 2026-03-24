@@ -505,13 +505,13 @@ def block_1_precipitation_flux():
     ax.plot(x_range, y_pred, 'r-', linewidth=2, label='Linear regression')
 
     p_str = f"p = {stats_pooled['p_value']:.3e}" if stats_pooled['p_value'] >= 0.001 else "p < 0.001"
-    ax.text(0.05, 0.95, f"r² = {stats_pooled['r2']:.4f}\n{p_str}\nn = {stats_pooled['n']}",
+    ax.text(0.05, 0.95, f"$R^2$ = {stats_pooled['r2']:.4f}\n{p_str}\n$n$ = {stats_pooled['n']}",
             transform=ax.transAxes, fontsize=11, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     ax.set_xlabel('Precipitation (mm/month)', fontsize=12)
-    ax.set_ylabel('CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=12)
-    ax.set_title('Prediction 1: Precipitation vs CH₄ Flux\n(Diffusion Limitation Hypothesis)', fontsize=13, fontweight='bold')
+    ax.set_ylabel(r'CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=12)
+    ax.set_title(r'Prediction 1: Precipitation vs CH$_4$ Flux' + '\n(Diffusion Limitation Hypothesis)', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.legend()
 
@@ -603,13 +603,13 @@ def block_2_temperature_flux(merged_precip_data):
     y_pred = stats_pooled['intercept'] + stats_pooled['slope'] * x_range
     ax.plot(x_range, y_pred, 'r-', linewidth=2, label='Linear regression')
 
-    ax.text(0.05, 0.95, f"r² = {stats_pooled['r2']:.3f}\np = {stats_pooled['p_value']:.3e}\nn = {stats_pooled['n']}",
+    ax.text(0.05, 0.95, f"$R^2$ = {stats_pooled['r2']:.3f}\n$p$ = {stats_pooled['p_value']:.3e}\n$n$ = {stats_pooled['n']}",
             transform=ax.transAxes, fontsize=11, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     ax.set_xlabel('Mean Temperature (°C)', fontsize=12)
-    ax.set_ylabel('CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=12)
-    ax.set_title('Temperature Does Not Explain CH₄ Flux\n(Control for Alternative Hypothesis)', fontsize=13, fontweight='bold')
+    ax.set_ylabel(r'CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=12)
+    ax.set_title(r'Temperature Does Not Explain CH$_4$ Flux' + '\n(Control for Alternative Hypothesis)', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.legend()
 
@@ -689,7 +689,7 @@ def block_3_multi_predictor(merged_temp_data):
     ax.set_yticklabels(['Precipitation (std)', 'Temperature (std)', 'Year (std)'])
     ax.axvline(0, color='black', linestyle='-', linewidth=0.5)
     ax.set_xlabel('Standardized Coefficient', fontsize=12)
-    ax.set_title('Prediction 5: Multi-Predictor OLS Model\n(R² = 1.2% — Year Dominates)', fontsize=13, fontweight='bold')
+    ax.set_title(r'Prediction 5: Multi-Predictor OLS Model' + '\n' + r'($R^2$ = 1.2% — Year Dominates)', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='x')
 
     plt.tight_layout()
@@ -766,7 +766,7 @@ def block_4_seasonal_stratification(merged_temp_data):
     ax.bar(x + width/2, temp_r2, width, label='Temperature', alpha=0.8)
 
     ax.set_xlabel('Season', fontsize=12)
-    ax.set_ylabel('R² (explained variance)', fontsize=12)
+    ax.set_ylabel(r'$R^2$ (explained variance)', fontsize=12)
     ax.set_title('Prediction 2: Seasonal Stratification\n(Spring/Fall Should Be Strongest If Diffusion-Limited)',
                  fontsize=13, fontweight='bold')
     ax.set_xticks(x)
@@ -863,7 +863,7 @@ def block_5_calcium_experiment():
              color='C1', alpha=0.7, linewidth=1.5)
 
     ax1.set_xlabel('Year', fontsize=11)
-    ax1.set_ylabel('Annual CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11)
+    ax1.set_ylabel(r'Annual CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=11)
     ax1.set_title('A) Time Series Comparison', fontsize=12, fontweight='bold')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
@@ -974,8 +974,8 @@ def block_6_urban_rural_divergence():
 
     ax.axhline(0, color='black', linestyle=':', linewidth=0.5)
     ax.set_xlabel('Year', fontsize=12)
-    ax.set_ylabel('Annual Mean CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=12)
-    ax.set_title('Prediction 4: Urban-Rural Divergence\n(Recovery Should Be Similar; Year×LandUse p = 0.007)', fontsize=13, fontweight='bold')
+    ax.set_ylabel(r'Annual Mean CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=12)
+    ax.set_title(r'Prediction 4: Urban-Rural Divergence' + '\n' + r'(Recovery Should Be Similar; Year$\times$LandUse $p$ = 0.007)', fontsize=13, fontweight='bold')
     ax.legend()
     ax.grid(True, alpha=0.3)
 
@@ -1099,7 +1099,7 @@ def block_7_breakpoint_detection():
                        label=f'Post-break median: {bes_post_median:.3f}')
 
     ax1.axhline(0, color='black', linestyle=':', linewidth=0.5)
-    ax1.set_ylabel('Annual Median CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11)
+    ax1.set_ylabel(r'Annual Median CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=11)
     ax1.set_title('A) BES Forest Sites (Annual Median)', fontsize=12, fontweight='bold')
     ax1.legend(fontsize=8)
     ax1.grid(True, alpha=0.3)
@@ -1121,7 +1121,7 @@ def block_7_breakpoint_detection():
 
     ax2.axhline(0, color='black', linestyle=':', linewidth=0.5)
     ax2.set_xlabel('Year', fontsize=11)
-    ax2.set_ylabel('Annual CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11)
+    ax2.set_ylabel(r'Annual CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=11)
     ax2.set_title('B) HBR Reference Watershed (WS6-BB)', fontsize=12, fontweight='bold')
     ax2.legend(fontsize=8)
     ax2.grid(True, alpha=0.3)
@@ -1206,13 +1206,13 @@ def block_8_deposition_overlay():
     # Panel A: Hubbard Brook — HB SO4 deposition + HBR CH4 flux
     ax1_twin = ax1.twinx()
     line1 = ax1.plot(so4_hb_annual.index, so4_hb_annual.values, 'o-', linewidth=2,
-                     label='SO₄ Deposition (HB)', color='steelblue')
+                     label=r'SO$_4$ Deposition (HB)', color='steelblue')
     line2 = ax1_twin.plot(ch4_hbr.index, ch4_hbr.values, 's--', linewidth=2,
-                          label='CH₄ Flux (HBR)', color='coral', alpha=0.7)
+                          label=r'CH$_4$ Flux (HBR)', color='coral', alpha=0.7)
 
     ax1.set_xlabel('Year', fontsize=11)
-    ax1.set_ylabel('SO₄ Deposition (kg/ha/yr)', fontsize=11, color='steelblue')
-    ax1_twin.set_ylabel('CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11, color='coral')
+    ax1.set_ylabel(r'SO$_4$ Deposition (kg/ha/yr)', fontsize=11, color='steelblue')
+    ax1_twin.set_ylabel(r'CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=11, color='coral')
     ax1.set_title('A) Hubbard Brook Region', fontsize=12, fontweight='bold')
     ax1.grid(True, alpha=0.3)
     ax1.tick_params(axis='y', labelcolor='steelblue')
@@ -1228,11 +1228,11 @@ def block_8_deposition_overlay():
     line3 = ax2.plot(n_md_annual.index, n_md_annual.values, 'o-', linewidth=2,
                      label='Inorg N Deposition (MD)', color='darkgreen')
     line4 = ax2_twin.plot(ch4_bes.index, ch4_bes.values, 's--', linewidth=2,
-                          label='CH₄ Flux (BES)', color='darkorange', alpha=0.7)
+                          label=r'CH$_4$ Flux (BES)', color='darkorange', alpha=0.7)
 
     ax2.set_xlabel('Year', fontsize=11)
     ax2.set_ylabel('Inorg N Deposition (kg/ha/yr)', fontsize=11, color='darkgreen')
-    ax2_twin.set_ylabel('CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=11, color='darkorange')
+    ax2_twin.set_ylabel(r'CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=11, color='darkorange')
     ax2.set_title('B) Baltimore Region', fontsize=12, fontweight='bold')
     ax2.grid(True, alpha=0.3)
     ax2.tick_params(axis='y', labelcolor='darkgreen')
@@ -1242,7 +1242,7 @@ def block_8_deposition_overlay():
     labels2 = [l.get_label() for l in lines2]
     ax2.legend(lines2, labels2, loc='upper left')
 
-    fig.suptitle('Deposition Trends Overlaid with CH₄ Flux Decline',
+    fig.suptitle(r'Deposition Trends Overlaid with CH$_4$ Flux Decline',
                  fontsize=13, fontweight='bold', y=0.995)
 
     plt.tight_layout()
@@ -1314,7 +1314,7 @@ def block_9_soil_nitrogen():
             site_type = 'Urban' if site in URBAN_SITES else 'Rural'
             ax.set_title(f'{site} ({site_type})', fontsize=11, fontweight='bold')
             ax.set_xlabel('Year', fontsize=10)
-            ax.set_ylabel('NO₃ (mg/L)', fontsize=10)
+            ax.set_ylabel(r'NO$_3$ (mg/L)', fontsize=10)
             ax.grid(True, alpha=0.3)
         else:
             ax = axes[idx]
@@ -1518,13 +1518,13 @@ def block_11_soil_moisture_flux(precip_r2=None):
     ax1.plot(x_range, y_pred, 'r-', linewidth=2, label='Linear regression')
 
     p_str = f"p = {stats_pooled['p_value']:.3e}" if stats_pooled['p_value'] >= 0.001 else "p < 0.001"
-    ax1.text(0.05, 0.95, f"r² = {stats_pooled['r2']:.3f}\n{p_str}\nn = {stats_pooled['n']}",
+    ax1.text(0.05, 0.95, f"$R^2$ = {stats_pooled['r2']:.3f}\n{p_str}\n$n$ = {stats_pooled['n']}",
             transform=ax1.transAxes, fontsize=11, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     ax1.set_xlabel('Mean Volumetric Water Content (VWC)', fontsize=12)
-    ax1.set_ylabel('CH₄ Flux (mg C m⁻² h⁻¹)', fontsize=12)
-    ax1.set_title('Panel A: In-Situ VWC vs CH₄ Flux', fontsize=12, fontweight='bold')
+    ax1.set_ylabel(r'CH$_4$ Flux (mg C m$^{-2}$ h$^{-1}$)', fontsize=12)
+    ax1.set_title(r'Panel A: In-Situ VWC vs CH$_4$ Flux', fontsize=12, fontweight='bold')
     ax1.grid(True, alpha=0.3)
     ax1.legend()
 
@@ -1536,7 +1536,7 @@ def block_11_soil_moisture_flux(precip_r2=None):
     }
 
     ax2.bar(comparison_data.keys(), comparison_data.values(), color=['steelblue', 'lightcoral'], alpha=0.8)
-    ax2.set_ylabel('R² Value', fontsize=12)
+    ax2.set_ylabel(r'$R^2$ Value', fontsize=12)
     ax2.set_title('Panel B: Moisture Predictor Comparison', fontsize=12, fontweight='bold')
     ax2.set_ylim(0, max(1.0, max(comparison_data.values()) * 1.2))
     ax2.grid(True, alpha=0.3, axis='y')
@@ -1628,13 +1628,13 @@ def block_12_harvard_forest():
     ax.plot(hf_monthly.index, y_trend, 'r--', linewidth=2, label='Trend line')
 
     p_str = f"p = {trend_stats['p_value']:.3e}" if trend_stats['p_value'] >= 0.001 else "p < 0.001"
-    ax.text(0.05, 0.95, f"Trend r² = {trend_stats['r2']:.3f}\n{p_str}\nn = {trend_stats['n']}",
+    ax.text(0.05, 0.95, f"Trend $R^2$ = {trend_stats['r2']:.3f}\n{p_str}\n$n$ = {trend_stats['n']}",
             transform=ax.transAxes, fontsize=11, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
 
     ax.set_xlabel('Month (1991-1994)', fontsize=12)
-    ax.set_ylabel('CH₄ Concentration (ppm)', fontsize=12)
-    ax.set_title('Harvard Forest Atmospheric CH₄ Context (1991–1994)', fontsize=13, fontweight='bold')
+    ax.set_ylabel(r'CH$_4$ Concentration (ppm)', fontsize=12)
+    ax.set_title(r'Harvard Forest Atmospheric CH$_4$ Context (1991--1994)', fontsize=13, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.legend()
 
@@ -1714,7 +1714,7 @@ def block_13_soil_properties():
     mb_means = [soil_shallow[soil_shallow['Site_Code'] == s]['MB_Carbon'].mean() for s in sites]
     mb_stds = [soil_shallow[soil_shallow['Site_Code'] == s]['MB_Carbon'].std() for s in sites]
     ax.bar(sites, mb_means, yerr=mb_stds, capsize=5, color='darkgreen', alpha=0.8, error_kw={'elinewidth': 2})
-    ax.set_ylabel('MB Carbon (µg C g⁻¹)', fontsize=11)
+    ax.set_ylabel(r'MB Carbon ($\mu$g C g$^{-1}$)', fontsize=11)
     ax.set_title('Panel B: Microbial Biomass Carbon', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='y')
 
@@ -1723,7 +1723,7 @@ def block_13_soil_properties():
     nnm_means = [soil_shallow[soil_shallow['Site_Code'] == s]['Net_N_Min'].mean() for s in sites]
     nnm_stds = [soil_shallow[soil_shallow['Site_Code'] == s]['Net_N_Min'].std() for s in sites]
     ax.bar(sites, nnm_means, yerr=nnm_stds, capsize=5, color='orange', alpha=0.8, error_kw={'elinewidth': 2})
-    ax.set_ylabel('Net N Min (µg N g⁻¹ d⁻¹)', fontsize=11)
+    ax.set_ylabel(r'Net N Min ($\mu$g N g$^{-1}$ d$^{-1}$)', fontsize=11)
     ax.set_title('Panel C: Net N Mineralization', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='y')
 
@@ -1732,7 +1732,7 @@ def block_13_soil_properties():
     nnitr_means = [soil_shallow[soil_shallow['Site_Code'] == s]['Net_Nitr'].mean() for s in sites]
     nnitr_stds = [soil_shallow[soil_shallow['Site_Code'] == s]['Net_Nitr'].std() for s in sites]
     ax.bar(sites, nnitr_means, yerr=nnitr_stds, capsize=5, color='red', alpha=0.8, error_kw={'elinewidth': 2})
-    ax.set_ylabel('Net Nitr (µg N g⁻¹ d⁻¹)', fontsize=11)
+    ax.set_ylabel(r'Net Nitr ($\mu$g N g$^{-1}$ d$^{-1}$)', fontsize=11)
     ax.set_title('Panel D: Net Nitrification', fontsize=12, fontweight='bold')
     ax.grid(True, alpha=0.3, axis='y')
 
@@ -1931,7 +1931,7 @@ def block_14_multi_scale(merged_temp_data):
                           alpha=0.8, edgecolor='black', linewidth=0.5)
         axes[0].set_xticks(x_pos)
         axes[0].set_xticklabels([f"{s}\n(n={n})" for s, n in zip(scales, n_vals)], fontsize=10)
-        axes[0].set_ylabel('R²', fontsize=12)
+        axes[0].set_ylabel(r'$R^2$', fontsize=12)
         axes[0].set_title('A) Total Variance Explained\nAcross Temporal Scales', fontsize=12, fontweight='bold')
         axes[0].set_ylim(0, max(r2_vals) * 2.5 if max(r2_vals) > 0 else 0.1)
         for bar, val in zip(bars, r2_vals):

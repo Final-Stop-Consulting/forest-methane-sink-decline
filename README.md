@@ -26,7 +26,7 @@ The convergence of these results suggests that diffusion limitation alone does n
 ```
 .
 ├── Analysis/
-│   ├── master_analysis.py          # Complete reproducible analysis (14 blocks)
+│   ├── master_analysis.py          # Complete reproducible analysis (15 blocks)
 │   ├── supplemental_robustness.py  # 12 robustness checks: LMM, outlier, quadratic, pre-breakpoint, interaction, nested LMM, AR(1), per-site R², permutation, lysimeter, HBR sensitivity, Precip×Post2002 interaction
 │   ├── requirements.txt            # Python dependencies
 │   └── output/                     # Generated figures (PNG + SVG), SUMMARY.txt, SUPPLEMENTAL_RESULTS.txt
@@ -57,7 +57,7 @@ python master_analysis.py
 python supplemental_robustness.py
 ```
 
-Output: 14 figures (PNG + SVG), `SUMMARY.txt`, and `SUPPLEMENTAL_RESULTS.txt` in `Analysis/output/`.
+Output: 5 manuscript figures + 10 supplementary figures (all PNG + SVG), `SUMMARY.txt`, and `SUPPLEMENTAL_RESULTS.txt` in `Analysis/output/`.
 
 Runtime: ~2 minutes on a standard laptop.
 
@@ -83,7 +83,7 @@ MIT. See [LICENSE](LICENSE).
 
 If you use this code or analysis, please cite the preprint:
 
-> Edmonds, V. (2026). Testing the diffusion limitation hypothesis for declining methane uptake in forest soils. *bioRxiv*. doi: [TBD]
+> Edmonds, V. (2026). Testing the diffusion limitation hypothesis for declining methane uptake in forest soils. *bioRxiv*. doi: [https://doi.org/10.64898/2026.03.12.711040]
 
 ## Data and Code Archive
 

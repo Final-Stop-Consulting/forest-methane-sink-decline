@@ -9,7 +9,7 @@ a 77% decline in forest CH₄ uptake at two Long-Term Ecological
 Research (LTER) sites: Baltimore Ecosystem Study (BES, 1998–2025)
 and Hubbard Brook Experimental Forest (HBR, 2002–2015).
 
-Fourteen analytical blocks systematically evaluate five predictions
+Fifteen analytical blocks systematically evaluate five predictions
 of the hypothesis using >10,000 chamber measurements, in-situ soil
 moisture, PRISM climate data, NADP deposition records, lysimeter
 chemistry, and vegetation surveys.
@@ -19,8 +19,9 @@ Usage:
     python master_analysis.py
 
 Output:
-    14 publication-quality figures (PNG + SVG) and SUMMARY.txt
-    are written to the output/ subdirectory.
+    5 manuscript figures (Figure_1 through Figure_5) and 10
+    supplementary figures (Figure_S1 through Figure_S10), each in
+    PNG + SVG format, plus SUMMARY.txt — all written to output/.
 
 Data:
     All input data are expected in ../Data/ relative to this script.
@@ -515,11 +516,11 @@ def block_1_precipitation_flux():
     ax.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_1_Precipitation_Flux.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_1_Precipitation_Flux.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S1_Precipitation_Flux.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S1_Precipitation_Flux.svg'))
     plt.close()
 
-    print(f"\nFigure 1 saved.")
+    print(f"\nFigure S1 saved.")
 
     return {
         'pooled': stats_pooled,
@@ -613,11 +614,11 @@ def block_2_temperature_flux(merged_precip_data):
     ax.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_2_Temperature_Flux.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_2_Temperature_Flux.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S2_Temperature_Flux.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S2_Temperature_Flux.svg'))
     plt.close()
 
-    print(f"\nFigure 2 saved.")
+    print(f"\nFigure S2 saved.")
 
     return {
         'pooled': stats_pooled,
@@ -692,11 +693,11 @@ def block_3_multi_predictor(merged_temp_data):
     ax.grid(True, alpha=0.3, axis='x')
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_3_Coefficients.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_3_Coefficients.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S3_Coefficients.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S3_Coefficients.svg'))
     plt.close()
 
-    print(f"\nFigure 3 saved.")
+    print(f"\nFigure S3 saved.")
 
     return model
 
@@ -775,11 +776,11 @@ def block_4_seasonal_stratification(merged_temp_data):
     ax.set_ylim([0, max(max(precip_r2), max(temp_r2)) * 1.2])
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_4_Seasonal.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_4_Seasonal.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S4_Seasonal.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S4_Seasonal.svg'))
     plt.close()
 
-    print(f"\nFigure 4 saved.")
+    print(f"\nFigure S4 saved.")
 
     return results_season
 
@@ -887,11 +888,11 @@ def block_5_calcium_experiment():
                  fontsize=13, fontweight='bold', y=1.02)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_5_CaExperiment.png'), dpi=DPI, bbox_inches='tight')
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_5_CaExperiment.svg'), bbox_inches='tight')
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S5_CaExperiment.png'), dpi=DPI, bbox_inches='tight')
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S5_CaExperiment.svg'), bbox_inches='tight')
     plt.close()
 
-    print(f"\nFigure 5 saved.")
+    print(f"\nFigure S5 saved.")
 
     return {
         'ws1_annual': ws1,
@@ -979,11 +980,11 @@ def block_6_urban_rural_divergence():
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_6_UrbanRural.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_6_UrbanRural.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_2_UrbanRural.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_2_UrbanRural.svg'))
     plt.close()
 
-    print(f"\nFigure 6 saved.")
+    print(f"\nFigure 2 saved.")
 
     return {
         'urban_annual': urban_annual,
@@ -1128,11 +1129,11 @@ def block_7_breakpoint_detection():
     fig.suptitle('Structural Breakpoint Detection\n(PELT Algorithm)', fontsize=13, fontweight='bold', y=0.995)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_7_Breakpoints.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_7_Breakpoints.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_4_Breakpoints.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_4_Breakpoints.svg'))
     plt.close()
 
-    print(f"\nFigure 7 saved.")
+    print(f"\nFigure 4 saved.")
 
     return {
         'bes_annual': bes_annual,
@@ -1245,11 +1246,11 @@ def block_8_deposition_overlay():
                  fontsize=13, fontweight='bold', y=0.995)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_8_Deposition.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_8_Deposition.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_5_Deposition.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_5_Deposition.svg'))
     plt.close()
 
-    print(f"\nFigure 8 saved.")
+    print(f"\nFigure 5 saved.")
 
     return {
         'so4_hb': so4_hb_annual,
@@ -1324,11 +1325,11 @@ def block_9_soil_nitrogen():
     fig.suptitle('Soil Nitrate Trends in Forest Lysimeters', fontsize=13, fontweight='bold', y=1.00)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_9_SoilNitrogen.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_9_SoilNitrogen.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S6_SoilNitrogen.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S6_SoilNitrogen.svg'))
     plt.close()
 
-    print(f"\nFigure 9 saved.")
+    print(f"\nFigure S6 saved.")
 
     return all_trends
 
@@ -1396,11 +1397,11 @@ def block_10_vegetation():
         ax.grid(True, alpha=0.3, axis='y')
 
         plt.tight_layout()
-        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_10_Vegetation.png'), dpi=DPI)
-        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_10_Vegetation.svg'))
+        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S7_Vegetation.png'), dpi=DPI)
+        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S7_Vegetation.svg'))
         plt.close()
 
-        print(f"\nFigure 10 saved.")
+        print(f"\nFigure S7 saved.")
 
         return veg_by_year
     else:
@@ -1544,11 +1545,11 @@ def block_11_soil_moisture_flux(precip_r2=None):
         ax2.text(i, v + 0.02, f'{v:.3f}', ha='center', fontsize=10, fontweight='bold')
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_11_SoilMoisture_Flux.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_11_SoilMoisture_Flux.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S8_SoilMoisture_Flux.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S8_SoilMoisture_Flux.svg'))
     plt.close()
 
-    print(f"\nFigure 11 saved.")
+    print(f"\nFigure S8 saved.")
 
     return {
         'pooled': stats_pooled,
@@ -1638,11 +1639,11 @@ def block_12_harvard_forest():
     ax.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_12_HarvardForest.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_12_HarvardForest.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S9_HarvardForest.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S9_HarvardForest.svg'))
     plt.close()
 
-    print(f"\nFigure 12 saved.")
+    print(f"\nFigure S9 saved.")
     print("NOTE: This is ambient atmospheric CH₄ concentration, not soil flux.")
     print("The 1991-1994 period predates BES/HBR records. Provides baseline context only.")
 
@@ -1740,11 +1741,11 @@ def block_13_soil_properties():
                 fontsize=13, fontweight='bold', y=1.00)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_13_SoilProperties.png'), dpi=DPI)
-    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_13_SoilProperties.svg'))
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S10_SoilProperties.png'), dpi=DPI)
+    plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_S10_SoilProperties.svg'))
     plt.close()
 
-    print(f"\nFigure 13 saved.")
+    print(f"\nFigure S10 saved.")
 
     return {
         'shallow_soil_data': soil_shallow,
@@ -1954,10 +1955,10 @@ def block_14_multi_scale(merged_temp_data):
         axes[1].legend(fontsize=9, loc='best')
 
         plt.tight_layout()
-        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_14_MultiScale.png'), dpi=DPI)
-        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_14_MultiScale.svg'))
+        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_3_MultiScale.png'), dpi=DPI)
+        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_3_MultiScale.svg'))
         plt.close()
-        print(f"\nFigure 14 saved.")
+        print(f"\nFigure 3 saved.")
     else:
         print("\nInsufficient scales for Figure 14.")
 
@@ -2147,6 +2148,103 @@ def print_summary(results_dict):
         f.write('\n'.join(summary_lines))
 
 # ============================================================================
+# BLOCK 15: COMBINED MOISTURE FIGURE (MANUSCRIPT FIGURE 1)
+# ============================================================================
+
+def block_15_combined_moisture(precip_data, vwc_data):
+    """
+    Block 15: Combined Two-Panel Moisture Figure
+    =============================================
+    Generates a publication-quality combined figure with:
+      Panel (a): Monthly precipitation vs CH4 flux (from Block 1 data)
+      Panel (b): In-situ VWC vs CH4 flux (from Block 11 data)
+
+    This is Figure 1 in the Biogeosciences manuscript.
+
+    Parameters
+    ----------
+    precip_data : pd.DataFrame
+        Merged precipitation-flux data from Block 1 (columns: ppt_mm, CH4_flux).
+    vwc_data : pd.DataFrame
+        Merged VWC-flux data from Block 11 (columns: Mean_VWC, CH4_flux).
+    """
+    print("\n" + "="*70)
+    print("BLOCK 15: COMBINED MOISTURE FIGURE (MANUSCRIPT FIG. 1)")
+    print("="*70)
+
+    from scipy.stats import linregress
+
+    # Panel (a) regression: precipitation
+    precip_clean = precip_data.dropna(subset=['ppt_mm', 'CH4_flux'])
+    slope_p, intercept_p, r_p, p_p, se_p = linregress(
+        precip_clean['ppt_mm'], precip_clean['CH4_flux']
+    )
+    r2_p = r_p**2
+    print(f"Panel (a) — Precip vs flux: R²={r2_p:.4f}, p={p_p:.4e}, n={len(precip_clean):,}")
+
+    # Panel (b) regression: VWC
+    vwc_clean = vwc_data.dropna(subset=['Mean_VWC', 'CH4_flux'])
+    slope_v, intercept_v, r_v, p_v, se_v = linregress(
+        vwc_clean['Mean_VWC'], vwc_clean['CH4_flux']
+    )
+    r2_v = r_v**2
+    print(f"Panel (b) — VWC vs flux:   R²={r2_v:.4f}, p={p_v:.4e}, n={len(vwc_clean):,}")
+
+    # ── Plot ──
+    fig_style = {
+        'font.family': 'sans-serif',
+        'font.size': 10,
+        'axes.labelsize': 11,
+        'axes.titlesize': 11,
+        'axes.facecolor': 'white',
+        'figure.facecolor': 'white',
+        'axes.grid': False,
+        'axes.spines.top': False,
+        'axes.spines.right': False,
+    }
+    with plt.rc_context(fig_style):
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+        # Panel (a): Precipitation
+        ax1.scatter(precip_clean['ppt_mm'], precip_clean['CH4_flux'],
+                    alpha=0.08, s=6, color='#4878CF', rasterized=True, edgecolors='none')
+        x_range = np.linspace(precip_clean['ppt_mm'].min(), precip_clean['ppt_mm'].max(), 100)
+        ax1.plot(x_range, intercept_p + slope_p * x_range, 'k-', linewidth=1.5)
+        ax1.set_xlabel('Monthly precipitation (mm)')
+        ax1.set_ylabel(r'CH$_4$ flux (mg C m$^{-2}$ h$^{-1}$)')
+        ax1.set_title('(a)')
+        p_str_p = f'p = {p_p:.3e}' if p_p >= 0.001 else 'p < 0.001'
+        ax1.text(0.95, 0.95, f'$R^2$ = {r2_p:.4f}\n{p_str_p}\n$n$ = {len(precip_clean):,}',
+                 transform=ax1.transAxes, fontsize=9, va='top', ha='right',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='0.7', alpha=0.9))
+
+        # Panel (b): VWC
+        ax2.scatter(vwc_clean['Mean_VWC'], vwc_clean['CH4_flux'],
+                    alpha=0.08, s=6, color='#6ACC65', rasterized=True, edgecolors='none')
+        x_range2 = np.linspace(vwc_clean['Mean_VWC'].min(), vwc_clean['Mean_VWC'].max(), 100)
+        ax2.plot(x_range2, intercept_v + slope_v * x_range2, 'k-', linewidth=1.5)
+        ax2.set_xlabel('Volumetric water content')
+        ax2.set_ylabel(r'CH$_4$ flux (mg C m$^{-2}$ h$^{-1}$)')
+        ax2.set_title('(b)')
+        p_str_v = f'p = {p_v:.3e}' if p_v >= 0.001 else 'p < 0.001'
+        ax2.text(0.95, 0.95, f'$R^2$ = {r2_v:.4f}\n{p_str_v}\n$n$ = {len(vwc_clean):,}',
+                 transform=ax2.transAxes, fontsize=9, va='top', ha='right',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='0.7', alpha=0.9))
+
+        plt.tight_layout(w_pad=3)
+        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_1_Combined_Moisture.png'), dpi=300, bbox_inches='tight')
+        plt.savefig(os.path.join(OUTPUT_DIR, 'Figure_1_Combined_Moisture.svg'), bbox_inches='tight')
+        plt.close()
+
+    print("Saved Figure_1_Combined_Moisture.png/svg")
+
+    return {
+        'precip': {'r2': r2_p, 'p': p_p, 'n': len(precip_clean), 'slope': slope_p},
+        'vwc': {'r2': r2_v, 'p': p_v, 'n': len(vwc_clean), 'slope': slope_v},
+    }
+
+
+# ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
@@ -2299,6 +2397,21 @@ if __name__ == "__main__":
         all_results['block14'] = result14
     except Exception as e:
         print(f"ERROR in Block 14: {e}")
+        import traceback
+        traceback.print_exc()
+
+    try:
+        # Block 15: Combined Moisture Figure (Manuscript Figure 1)
+        print("\nExecuting Block 15...")
+        precip_data = all_results.get('block1', {}).get('merged_data')
+        vwc_data = all_results.get('block11', {}).get('merged_data')
+        if precip_data is not None and vwc_data is not None:
+            result15 = block_15_combined_moisture(precip_data, vwc_data)
+            all_results['block15'] = result15
+        else:
+            print("Skipping Block 15: requires data from Blocks 1 and 11.")
+    except Exception as e:
+        print(f"ERROR in Block 15: {e}")
         import traceback
         traceback.print_exc()
 

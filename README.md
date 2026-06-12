@@ -1,8 +1,8 @@
-# Testing the Diffusion Limitation Hypothesis for Declining Methane Uptake in Forest Soils
+# Testing the Precipitation-Driven Diffusion Limitation Hypothesis for Declining Methane Uptake in Forest Soils
 
 Code and data manifest for:
 
-**Testing the Diffusion Limitation Hypothesis for Declining Methane Uptake in Forest Soils**
+**Testing the Precipitation-Driven Diffusion Limitation Hypothesis for Declining Methane Uptake in Forest Soils**
 
 Victor Edmonds. Preprint: [bioRxiv link TBD]
 
@@ -19,7 +19,7 @@ We tested five predictions of the diffusion hypothesis against 27 years of chamb
 
 A fifth test -- the calcium silicate amendment at Hubbard Brook -- produced a null result (Cohen's d = -0.012) consistent with diffusion limitation but also with biological alternatives, constraining the recovery potential of the methanotrophic community.
 
-The convergence of these results suggests that diffusion limitation alone does not adequately explain the observed decline, pointing instead toward biological control consistent with nitrogen-mediated degradation of the high-affinity methanotrophic community.
+The convergence of these results suggests that precipitation-driven diffusion limitation does not adequately explain the observed decline, pointing instead toward biological control consistent with nitrogen-mediated degradation of the high-affinity methanotrophic community. (Note: this tests precipitation as the *driver* of the decline; diffusion as a transport mechanism is not itself rejected.)
 
 ## Repository structure
 
@@ -27,9 +27,10 @@ The convergence of these results suggests that diffusion limitation alone does n
 .
 ├── Analysis/
 │   ├── master_analysis.py          # Complete reproducible analysis (15 blocks)
-│   ├── supplemental_robustness.py  # 13 robustness checks: LMM, outlier, quadratic, pre-breakpoint, interaction, nested LMM, AR(1), per-site R², permutation, lysimeter, HBR sensitivity, Precip×Post2002 interaction, random slopes LMM
+│   ├── supplemental_robustness.py  # S1-S13 robustness checks: LMM, outlier, quadratic (VWC n=2,415), pre-breakpoint, interaction, nested LMM, AR(1), per-site R², permutation, lysimeter, HBR sensitivity (l2/annual), Precip×Post2002 interaction, random slopes LMM
+│   ├── breakpoint_robustness.py    # S14-S17: block-bootstrap breakpoint CIs, cross-method comparison, expanded penalty sweep, HBR power analysis
 │   ├── requirements.txt            # Python dependencies
-│   └── output/                     # Generated figures (PNG + SVG), SUMMARY.txt, SUPPLEMENTAL_RESULTS.txt
+│   └── output/                     # Generated figures (PNG + SVG), SUMMARY.txt, SUPPLEMENTAL_RESULTS.txt, BREAKPOINT_ROBUSTNESS_RESULTS.txt
 ├── Data/
 │   └── README.md                   # Data manifest: sources, download URLs, file placement
 └── README.md                       # This file
@@ -55,9 +56,10 @@ Requires Python 3.8+. Dependencies: pandas, numpy, scipy, statsmodels, matplotli
 cd Analysis
 python master_analysis.py
 python supplemental_robustness.py
+python breakpoint_robustness.py
 ```
 
-Output: 5 manuscript figures + 10 supplementary figures (all PNG + SVG), `SUMMARY.txt`, and `SUPPLEMENTAL_RESULTS.txt` in `Analysis/output/`.
+Output: 5 manuscript figures + 10 supplementary figures (all PNG + SVG), `SUMMARY.txt`, `SUPPLEMENTAL_RESULTS.txt`, and `BREAKPOINT_ROBUSTNESS_RESULTS.txt` in `Analysis/output/`.
 
 Runtime: ~2 minutes on a standard laptop.
 

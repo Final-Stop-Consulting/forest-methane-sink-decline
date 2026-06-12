@@ -337,12 +337,23 @@ def load_soil_moisture():
     df['Month'] = df['Timestamp'].dt.month
     df['YearMonth'] = df['Timestamp'].dt.to_period('M')
 
-    # Site code column
-    if 'Site_Code' not in df.columns:
-        for col in ['Site', 'site', 'SiteCode', 'site_code']:
-            if col in df.columns:
-                df = df.rename(columns={col: 'Site_Code'})
-                break
+    # Site code column -- map raw sensor site names to the standard flux site
+    # codes BEFORE merging. master_analysis.load_soil_moisture() applies this
+    # mapping; omitting it here previously collapsed the VWC->flux merge to the
+    # single site whose raw name coincides with a flux code (ORUR), yielding
+    # n=301 in the S3 quadratic VWC test instead of the full n=2,415 paired
+    # dataset reported in Sect. 3.1. Restoring the mapping fixes that.
+    site_map = {
+        'HD1': 'HD', 'LEA1': 'LEA', 'LEA2': 'LEA', 'ORLR': 'ORLR',
+        'ORU1': 'ORU', 'ORU2': 'ORU', 'ORUR': 'ORUR',
+        'UMBC1': 'UMBC', 'UMBC2': 'UMBC',
+    }
+    raw_site_col = None
+    for col in ['Site', 'site', 'SiteCode', 'site_code', 'Site_Code']:
+        if col in df.columns:
+            raw_site_col = col
+            break
+    df['Site_Code'] = df[raw_site_col].map(site_map).fillna(df[raw_site_col])
 
     # Extract VWC columns
     vwc_cols = [col for col in df.columns if col.startswith('Port_') and col.endswith('_VWC')]
@@ -1176,21 +1187,33 @@ def run_hbr_changepoint_sensitivity():
     print("ANALYSIS 11: HBR CHANGEPOINT SENSITIVITY")
     print("=" * 70)
 
-    hbr = load_hbr_monthly()
-    ws6 = hbr[(hbr['StudySite'] == 'Hubbard Brook') & (hbr['SampleSite'] == 'WS6-BB')].copy()
-    ws6 = ws6.dropna(subset=['Mean_Monthly_flux'])
-
-    annual = ws6.groupby('Year')['Mean_Monthly_flux'].median().reset_index()
+    # Use the SAME series, cost, and year convention as the main changepoint
+    # analysis (master_analysis.py Block 7 / Figure 4): annual WS6-BB median
+    # from the annual file, model="l2", breakpoint year = last year of the
+    # pre-break segment. This keeps the reported breakpoint years consistent
+    # with the main text (2011) rather than the first-year-of-segment label
+    # (2012) the earlier rbf/monthly version produced.
+    fpath = os.path.join(DATA_DIR, "knb-lter-hbr.207/knb-lter-hbr.207-CH4_flux_annual.csv")
+    hbr = pd.read_csv(fpath)
+    if 'Annual CH4flux' in hbr.columns:
+        hbr = hbr.rename(columns={'Annual CH4flux': 'Annual_CH4_flux'})
+    hbr['Year'] = hbr['Year'].astype(int)
+    annual = (hbr[hbr['Site'] == 'WS6-BB']
+              .groupby('Year')['Annual_CH4_flux'].median()
+              .reset_index().sort_values('Year').reset_index(drop=True))
     annual.columns = ['Year', 'Median_flux']
     signal = annual['Median_flux'].values
 
     results = {'full': {}, 'truncated': {}}
 
+    def _bps(sig, yr_series, pen):
+        res = ruptures.Pelt(model="l2", min_size=2).fit(sig).predict(pen=pen)
+        return [int(yr_series.iloc[i - 1]) for i in res if i < len(sig)]
+
     # Full data
     print(f"\n  Full data: {annual['Year'].min()}-{annual['Year'].max()} ({len(annual)} years)")
     for pen in [0.05, 0.1, 0.2, 0.5, 1.0]:
-        res = ruptures.Pelt(model="rbf", min_size=2).fit(signal).predict(pen=pen)
-        bps = [int(annual['Year'].iloc[i]) for i in res[:-1]]
+        bps = _bps(signal, annual['Year'], pen)
         print(f"    pen={pen}: breakpoints = {bps}")
         results['full'][pen] = bps
 
@@ -1199,8 +1222,7 @@ def run_hbr_changepoint_sensitivity():
     signal_trunc = annual_trunc['Median_flux'].values
     print(f"\n  Truncated: {annual_trunc['Year'].min()}-{annual_trunc['Year'].max()} ({len(annual_trunc)} years)")
     for pen in [0.05, 0.1, 0.2, 0.5, 1.0]:
-        res = ruptures.Pelt(model="rbf", min_size=2).fit(signal_trunc).predict(pen=pen)
-        bps = [int(annual_trunc['Year'].iloc[i]) for i in res[:-1]]
+        bps = _bps(signal_trunc, annual_trunc['Year'], pen)
         print(f"    pen={pen}: breakpoints = {bps}")
         results['truncated'][pen] = bps
 

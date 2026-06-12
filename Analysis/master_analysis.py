@@ -1218,10 +1218,14 @@ def block_8_deposition_overlay():
     ax1.tick_params(axis='y', labelcolor='steelblue')
     ax1_twin.tick_params(axis='y', labelcolor='coral')
 
+    # Structural breakpoint marker (HBR, 2011; Referee comments R1.6 / R2.3)
+    vlineA = ax1.axvline(2011, color='black', linestyle='--', linewidth=1.8,
+                         alpha=0.85, label='HBR breakpoint (2011)')
+
     # Combine legends
-    lines = line1 + line2
+    lines = line1 + line2 + [vlineA]
     labels = [l.get_label() for l in lines]
-    ax1.legend(lines, labels, loc='upper left')
+    ax1.legend(lines, labels, loc='upper right', fontsize=9)
 
     # Panel B: Baltimore — MD Inorg N deposition + BES CH4 flux
     ax2_twin = ax2.twinx()
@@ -1238,11 +1242,16 @@ def block_8_deposition_overlay():
     ax2.tick_params(axis='y', labelcolor='darkgreen')
     ax2_twin.tick_params(axis='y', labelcolor='darkorange')
 
-    lines2 = line3 + line4
-    labels2 = [l.get_label() for l in lines2]
-    ax2.legend(lines2, labels2, loc='upper left')
+    # Structural breakpoint marker (BES, 2002; Referee comments R1.6 / R2.3)
+    vlineB = ax2.axvline(2002, color='black', linestyle='--', linewidth=1.8,
+                         alpha=0.85, label='BES breakpoint (2002)')
 
-    fig.suptitle(r'Deposition Trends Overlaid with CH$_4$ Flux Decline',
+    lines2 = line3 + line4 + [vlineB]
+    labels2 = [l.get_label() for l in lines2]
+    ax2.legend(lines2, labels2, loc='upper right', fontsize=9)
+
+    fig.suptitle(r'Deposition Trends Overlaid with CH$_4$ Flux Decline'
+                 '\n(structural breakpoints marked: BES 2002, HBR 2011)',
                  fontsize=13, fontweight='bold', y=0.995)
 
     plt.tight_layout()
